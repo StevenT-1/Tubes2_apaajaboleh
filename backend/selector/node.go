@@ -4,7 +4,7 @@ import "strings"
 
 type Node struct {
 	Tag string
-	Attributes map[string]string
+	Attrs map[string]string
 	Children []*Node
 	Parent *Node
 	Depth int
@@ -14,7 +14,7 @@ type Node struct {
 }
 
 func (n *Node) Classes() []string {
-	cls, ok := n.Attributes["class"]
+	cls, ok := n.Attrs["class"]
 	if !ok || cls == "" {
 		return nil
 	}
@@ -22,7 +22,7 @@ func (n *Node) Classes() []string {
 }
 
 func (n *Node) ID() string {
-	return n.Attributes["id"]
+	return n.Attrs["id"]
 }
 
 func prevSibling(node *Node) *Node {
