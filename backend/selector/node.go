@@ -2,8 +2,18 @@ package selector
 
 import "strings"
 
+type NodeType string
+
+const (
+    NodeDocument NodeType = "document"
+    NodeElement NodeType = "element"
+    NodeText NodeType = "text"
+)
+
 type Node struct {
+	Type NodeType
 	Tag string
+	Text string
 	Attrs map[string]string
 	Children []*Node
 	Parent *Node
