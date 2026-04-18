@@ -7,7 +7,6 @@ type Node struct {
 	Attrs map[string]string
 	Children []*Node
 	Parent *Node
-	Depth int
 	Visited bool
 	Matched bool
 	TraverseOrder int
