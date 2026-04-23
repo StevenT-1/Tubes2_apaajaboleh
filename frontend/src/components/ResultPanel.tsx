@@ -67,7 +67,7 @@ export default function ResultPanel({ steps, elapsedMs, visitedCount, algorithm,
                 ) : (
                     <ul className="rp-match-list">
                         {matched.map((s, i) => {
-                            const attrs = Object.entries(s.attributes)
+                            const attrs = Object.entries(s.attributes ?? {})
                                 .filter(([k]) => k === "id" || k === "class")
                                 .map(([k, v]) => (k === "id" ? `#${v}` : `.${v.split(" ").join(".")}`))
                                 .join(" ");

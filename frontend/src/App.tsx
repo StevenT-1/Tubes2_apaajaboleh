@@ -1,14 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import InputForm, { type TraversalConfig } from "./components/InputForm";
 import DOMTreeViewer from "./components/DOMTreeViewer";
 import TraversalLog, { type TraversalStep } from "./components/TraversalLog";
 import type { DOMNode } from "./components/DOMTreeType";
 import "./App.css";
 import bannerVideo from "./assets/nick-wilde-zootopia-2.mp4";
-import { mockTraverse } from "./mockApi";
-
-// ── Set to false when the real backend is running ──
-const USE_MOCK = true;
 
 type AppState = "idle" | "loading" | "result" | "error";
 
@@ -16,6 +12,9 @@ interface TraversalResult {
   tree: DOMNode;
   steps: TraversalStep[];
   elapsedMs: number;
+  nodesVisited: number;
+  maxDepth: number;
+  matchesFound: number;
 }
 
 export default function App() {
@@ -25,7 +24,6 @@ export default function App() {
   const [lastConfig, setLastConfig] = useState<TraversalConfig | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to results when search completes
   useEffect(() => {
     if (appState === "result" && resultsRef.current) {
       setTimeout(() => {
@@ -41,37 +39,31 @@ export default function App() {
     setErrorMsg("");
 
     try {
-      let data: TraversalResult;
+      const response = await fetch("/api/traverse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
 
-      if (USE_MOCK) {
-        // ── MOCK MODE — no backend needed ──
-        data = await mockTraverse(config);
-      } else {
-        // ── REAL API ──
-        const res = await fetch("/api/traverse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ message: "Terjadi kesalahan pada server." }));
-          throw new Error(err.message ?? `HTTP ${res.status}`);
-        }
-        data = await res.json();
+      if (!response.ok) {
+        const err = await response
+          .json()
+          .catch(() => ({ message: "Terjadi kesalahan pada server." }));
+        throw new Error(err.message ?? `HTTP ${response.status}`);
       }
 
+      const data: TraversalResult = await response.json();
       setResult(data);
       setAppState("result");
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Terjadi kesalahan tidak diketahui.");
+    } catch (error) {
+      setErrorMsg(
+        error instanceof Error ? error.message : "Terjadi kesalahan tidak diketahui.",
+      );
       setAppState("error");
     }
   }
 
-  // Calculate stats
-  const visitedCount = result?.steps.filter((s) => s.event === "visit" || s.event === "match").length ?? 0;
   const matchedElements = result?.steps.filter((s) => s.event === "match") ?? [];
-  const maxDepth = result?.steps.reduce((max, s) => Math.max(max, s.depth), 0) ?? 0;
 
   return (
     <div className="site-wrap">
@@ -176,7 +168,7 @@ export default function App() {
                   <div className="top-stats-grid">
                     <div className="stat-card">
                       <span className="stat-label">NODES VISITED</span>
-                      <span className="stat-value">{visitedCount}</span>
+                      <span className="stat-value">{result.nodesVisited}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">TIME ELAPSED</span>
@@ -184,11 +176,11 @@ export default function App() {
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">MAX DEPTH</span>
-                      <span className="stat-value">{maxDepth}</span>
+                      <span className="stat-value">{result.maxDepth}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">MATCHES FOUND</span>
-                      <span className="stat-value text-green-700">{matchedElements.length}</span>
+                      <span className="stat-value text-green-700">{result.matchesFound}</span>
                     </div>
                   </div>
 
@@ -211,7 +203,7 @@ export default function App() {
                     <div className="section-header">
                       <h3 className="section-title">Traversal Results</h3>
                       <p className="section-subtitle">
-                        Found {matchedElements.length} matching elements in {result.steps.length} steps.
+                        Found {result.matchesFound} matching elements in {result.steps.length} steps.
                       </p>
                     </div>
                     
@@ -220,22 +212,22 @@ export default function App() {
                       <div className="matched-elements-col">
                         <div className="matched-header">
                           <span className="matched-title">Matched Elements</span>
-                          <span className="matched-badge">{matchedElements.length} found</span>
+                          <span className="matched-badge">{result.matchesFound} found</span>
                         </div>
                         
                         {matchedElements.length === 0 ? (
                           <div className="no-matches">Tidak ada elemen yang cocok.</div>
                         ) : (
                           <div className="matched-list">
-                            {matchedElements.map((s, i) => {
-                              const attrs = Object.entries(s.attributes)
+                            {matchedElements.map((s) => {
+                              const attrs = Object.entries(s.attributes ?? {})
                                 .filter(([k]) => k === "id" || k === "class")
                                 .map(([k, v]) => (k === "id" ? `#${v}` : `.${v.split(" ").join(".")}`))
                                 .join(" ");
                               return (
                                 <div key={s.step} className="matched-item">
                                   <div className="matched-item-header">
-                                    <span className="matched-tag">&lt;{s.tag}&gt;</span>
+                                    <span className="matched-tag">&lt;{s.tag ?? "node"}&gt;</span>
                                     <span className="matched-depth">Depth: {s.depth}</span>
                                   </div>
                                   {attrs && <div className="matched-attrs">{attrs}</div>}

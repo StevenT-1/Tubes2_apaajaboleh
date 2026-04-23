@@ -19,6 +19,12 @@ import { getLayoutedElements } from "./dagreLayout";
 const nodeTypes = { domNode: DOMNodeCard };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+function compactText(text = "", maxLength = 28): string {
+  const normalized = text.trim().replace(/\s+/g, " ");
+  const chars = Array.from(normalized);
+  if (chars.length <= maxLength) return normalized;
+  return `${chars.slice(0, maxLength - 1).join("")}...`;
+}
 
 function flattenToFlow(
   node: DOMNode,
@@ -28,13 +34,16 @@ function flattenToFlow(
   isRoot = false
 ) {
   const attrs = node.attributes ?? {};
+  const type = node.type ?? "element";
 
   nodesAcc.push({
     id: node.id,
     type: "domNode",
     position: { x: 0, y: 0 }, // dagre will override
     data: {
+      type,
       tag: node.tag,
+      textPreview: type === "text" ? compactText(node.text) : undefined,
       id: attrs.id,
       classes: attrs.class,
       state: node.state ?? "idle",

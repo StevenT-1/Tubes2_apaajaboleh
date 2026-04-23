@@ -108,7 +108,7 @@ function flattenBFS(root: DOMNode): FlatNode[] {
     while (queue.length) {
         const { node, depth } = queue.shift()!;
         result.push({ node, depth });
-        for (const child of node.children) queue.push({ node: child, depth: depth + 1 });
+        for (const child of node.children ?? []) queue.push({ node: child, depth: depth + 1 });
     }
     return result;
 }
@@ -117,7 +117,7 @@ function flattenDFS(root: DOMNode): FlatNode[] {
     const result: FlatNode[] = [];
     function dfs(node: DOMNode, depth: number) {
         result.push({ node, depth });
-        for (const child of node.children) dfs(child, depth + 1);
+        for (const child of node.children ?? []) dfs(child, depth + 1);
     }
     dfs(root, 0);
     return result;
@@ -134,26 +134,26 @@ function matchesSelector(node: DOMNode, selector: string): boolean {
     // .class
     if (s.startsWith(".")) {
         const cls = s.slice(1);
-        return (node.attributes["class"] ?? "").split(" ").includes(cls);
+        return (node.attributes?.["class"] ?? "").split(" ").includes(cls);
     }
 
     // #id
     if (s.startsWith("#")) {
-        return node.attributes["id"] === s.slice(1);
+        return node.attributes?.["id"] === s.slice(1);
     }
 
     // tag.class  e.g. div.card
     const tagClass = s.match(/^([a-z][a-z0-9]*)\.([^\s]+)$/);
     if (tagClass) {
         const [, tag, cls] = tagClass;
-        return node.tag === tag && (node.attributes["class"] ?? "").split(" ").includes(cls);
+        return node.tag === tag && (node.attributes?.["class"] ?? "").split(" ").includes(cls);
     }
 
     // tag#id
     const tagId = s.match(/^([a-z][a-z0-9]*)#([^\s]+)$/);
     if (tagId) {
         const [, tag, id] = tagId;
-        return node.tag === tag && node.attributes["id"] === id;
+        return node.tag === tag && node.attributes?.["id"] === id;
     }
 
     // fallback — match tag
@@ -186,7 +186,7 @@ function markTree(root: DOMNode, steps: TraversalStep[]): DOMNode {
         return {
             ...n,
             state: stateMap.get(n.id) ?? "idle",
-            children: n.children.map(mark),
+            children: (n.children ?? []).map(mark),
         };
     }
     return mark(root);

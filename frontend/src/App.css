@@ -1281,7 +1281,39 @@ button.text-xs.px-4:hover {
 
 .traversal-log-col {
   background: var(--bg);
+  min-width: 0;
   /* The TraversalLog component will fill this */
+}
+
+.traversal-log-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.traversal-log-body {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.traversal-log-table {
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+}
+
+.traversal-log-row {
+  width: 100%;
+  min-width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.traversal-log-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* Reset rounded corners inside components to match rigid aesthetic */
@@ -1289,4 +1321,4 @@ button.text-xs.px-4:hover {
   border-radius: var(--r-sm) !important;
 }
 
-.text-green-700 { color: var(--green); }
+.text-green-700 { color: var(--green); }
