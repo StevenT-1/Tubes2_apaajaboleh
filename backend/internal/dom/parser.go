@@ -10,7 +10,7 @@ import (
 
 func ParseHTML(r io.Reader) (*Node, error) {
 	if r == nil {
-		return nil, fmt.Errorf("html reader is nil")
+		return nil, fmt.Errorf("html io reader is nil")
 	}
 
 	t := html.NewTokenizer(r)
@@ -28,34 +28,30 @@ func ParseHTML(r io.Reader) (*Node, error) {
 			}
 			return nil, fmt.Errorf("tokenizing html: %w", t.Err())
 		case html.StartTagToken:
-			tag := strings.ToLower(token.Data)
 			attrs := make(map[string]string)
 			for _, e := range token.Attr {
 				attrs[e.Key] = e.Val
 			}
-			child := NewElement(tag, attrs)
+			child := NewElement(token.Data, attrs)
 			parent.AppendChild(child)
 			parent = child
 			stack = append(stack, child)
 		case html.EndTagToken:
 			if len(stack) > 1 {
-				// Pop from stack and update parent
 				stack = stack[:len(stack)-1]
 				parent = stack[len(stack)-1]
 			}
 		case html.TextToken:
-			// Skip whitespace-only text nodes
 			if strings.TrimSpace(token.Data) != "" {
 				child := NewText(token.Data)
 				parent.AppendChild(child)
 			}
 		case html.SelfClosingTagToken:
-			tag := strings.ToLower(token.Data)
 			attrs := make(map[string]string)
 			for _, e := range token.Attr {
 				attrs[e.Key] = e.Val
 			}
-			child := NewElement(tag, attrs)
+			child := NewElement(token.Data, attrs)
 			parent.AppendChild(child)
 		}
 	}
