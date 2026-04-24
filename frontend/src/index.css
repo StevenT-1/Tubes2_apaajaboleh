@@ -1,0 +1,468 @@
+/* ── Google Fonts ──────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* page */
+  --page-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-bg-2: #f7f7f5;
+  --surface: #ffffff;
+  --surface-float: #f8f8f4;
+  --bg: #f4f5f1;
+
+  /* header pastel — sage green */
+  --header-bg: #c8d5c0;
+  --header-text: #2d3a27;
+
+  /* borders */
+  --border: #d4d4d0;
+  --border-hi: #b0b0aa;
+
+  /* text */
+  --text: #4a4a46;
+  --text-hi: #1a1a18;
+  --text-dim: #8a8a84;
+  --text-code: #3a5a32;
+
+  /* primary accent — sage/forest green */
+  --accent: #5c7a52;
+  --accent-hi: #7a9c6e;
+  --accent-dark: #3d5536;
+  --accent-dim: rgba(92, 122, 82, 0.10);
+  --accent-border: rgba(92, 122, 82, 0.30);
+  --accent-glow: 0 0 20px rgba(92, 122, 82, 0.20);
+
+  /* emerald (matched nodes) */
+  --green: #4a7c59;
+  --green-hi: #6aa07e;
+  --green-dim: rgba(74, 124, 89, 0.10);
+  --green-border: rgba(74, 124, 89, 0.30);
+  --green-glow: 0 0 18px rgba(74, 124, 89, 0.22);
+
+  /* amber (visited nodes) */
+  --amber: #c8922a;
+  --amber-hi: #e0a83a;
+  --amber-dim: rgba(200, 146, 42, 0.10);
+  --amber-border: rgba(200, 146, 42, 0.30);
+
+  /* red */
+  --red: #c0392b;
+  --red-dim: rgba(192, 57, 43, 0.10);
+
+  /* shadows — very subtle for clean white look */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.09);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
+
+  /* fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* radii — rigid/square style */
+  --r-sm: 0px;
+  --r-md: 0px;
+  --r-lg: 0px;
+  --r-xl: 0px;
+
+  /* transitions */
+  --t: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  --t-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--page-bg);
+  color: var(--text);
+  min-height: 100dvh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+══════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c8c8c2;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a09a;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   OVERRIDE TAILWIND
+══════════════════════════════════════════════════════════════════════ */
+
+/* surfaces */
+.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.bg-gray-50 {
+  background-color: var(--card-bg-2) !important;
+}
+
+.bg-gray-100 {
+  background-color: #eeeeea !important;
+}
+
+.bg-gray-200 {
+  background-color: #e0e0dc !important;
+}
+
+.bg-gray-300 {
+  background-color: #ccccC6 !important;
+}
+
+/* text */
+.text-gray-800 {
+  color: var(--text-hi) !important;
+}
+
+.text-gray-700 {
+  color: #2a2a26 !important;
+}
+
+.text-gray-600 {
+  color: #3a3a36 !important;
+}
+
+.text-gray-500 {
+  color: var(--text) !important;
+}
+
+.text-gray-400 {
+  color: var(--text-dim) !important;
+}
+
+.text-gray-300 {
+  color: #ccccC6 !important;
+}
+
+/* borders */
+.border-gray-200 {
+  border-color: var(--border) !important;
+}
+
+.border-gray-100 {
+  border-color: #e8e8e4 !important;
+}
+
+.border-gray-400 {
+  border-color: var(--border-hi) !important;
+}
+
+/* blue → accent green */
+.text-blue-600 {
+  color: var(--accent) !important;
+}
+
+.text-blue-700 {
+  color: var(--accent-dark) !important;
+}
+
+.text-blue-800 {
+  color: var(--accent-dark) !important;
+}
+
+.text-blue-400 {
+  color: var(--accent-hi) !important;
+}
+
+.bg-blue-50 {
+  background-color: var(--accent-dim) !important;
+}
+
+.bg-blue-500 {
+  background-color: var(--accent) !important;
+}
+
+.border-blue-500 {
+  border-color: var(--accent) !important;
+}
+
+.border-blue-300 {
+  border-color: var(--accent-border) !important;
+}
+
+.border-t-blue-600 {
+  border-top-color: var(--accent) !important;
+}
+
+.focus\:ring-blue-300:focus {
+  --tw-ring-color: var(--accent-border) !important;
+}
+
+/* amber */
+.text-amber-600 {
+  color: #b07820 !important;
+}
+
+.text-amber-700 {
+  color: #8a5c18 !important;
+}
+
+.text-amber-800 {
+  color: #6a4412 !important;
+}
+
+.bg-amber-50 {
+  background-color: var(--amber-dim) !important;
+}
+
+.bg-amber-400 {
+  background-color: var(--amber) !important;
+}
+
+.border-amber-400 {
+  border-color: var(--amber-border) !important;
+}
+
+/* green (matched) */
+.text-green-600 {
+  color: var(--green) !important;
+}
+
+.text-green-700 {
+  color: #3a6348 !important;
+}
+
+.bg-green-50 {
+  background-color: var(--green-dim) !important;
+}
+
+.bg-green-500 {
+  background-color: var(--green) !important;
+}
+
+.border-green-500 {
+  border-color: var(--green-border) !important;
+}
+
+/* red */
+.text-red-600 {
+  color: #b52b1f !important;
+}
+
+.text-red-500 {
+  color: #c0392b !important;
+}
+
+.border-red-400 {
+  border-color: rgba(192, 57, 43, 0.4) !important;
+}
+
+.bg-red-50 {
+  background-color: var(--red-dim) !important;
+}
+
+/* hover */
+.hover\:bg-gray-50:hover {
+  background-color: #f7f7f5 !important;
+}
+
+.hover\:text-gray-700:hover {
+  color: #2a2a26 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+══════════════════════════════════════════════════════════════════════ */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-sans);
+  color: var(--text-hi);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+p {
+  color: var(--text);
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   INPUTS
+══════════════════════════════════════════════════════════════════════ */
+input[type="text"],
+input[type="number"],
+textarea {
+  font-family: var(--font-sans);
+  background: var(--card-bg);
+  color: var(--text-hi);
+  border: 1.5px solid var(--border);
+  border-radius: 0;
+  transition: border-color var(--t), box-shadow var(--t);
+  outline: none;
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+textarea {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-code);
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   REACT FLOW 
+══════════════════════════════════════════════════════════════════════ */
+.react-flow {
+  background: #f7f7f5 !important;
+  border-radius: 0;
+}
+
+.react-flow__background patternElement {
+  color: #dde8d8 !important;
+}
+
+.react-flow__minimap {
+  background: var(--card-bg) !important;
+  border: 1.5px solid var(--border);
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.react-flow__controls {
+  background: var(--card-bg) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  transition: background var(--t) !important;
+  color: var(--text) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--accent-dim) !important;
+}
+
+.react-flow__controls-button svg {
+  fill: var(--text) !important;
+}
+
+.react-flow__controls-button:hover svg {
+  fill: var(--accent) !important;
+}
+
+.react-flow__edge-path {
+  stroke: #c4cfc0 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════════════════════════════ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    box-shadow: var(--green-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(74, 124, 89, 0.38);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.28s ease-out both;
+}
+
+.animate-spin {
+  animation: spin 0.75s linear infinite;
+}
