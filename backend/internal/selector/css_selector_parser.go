@@ -16,10 +16,17 @@ const (
 )
 
 type SimpleSelector struct {
-	Tag string
-	IDs []string
-	Classes []string
-	Universal bool
+	Tag        string
+	IDs        []string
+	Classes   []string
+	Attributes []AttributeSelector
+	Universal  bool
+}
+
+type AttributeSelector struct {
+	Name     string
+	Value    string
+	HasValue bool
 }
 
 type SelectorPart struct {
@@ -150,6 +157,13 @@ func parseSimple(raw string, start int) (SimpleSelector, int, bool) {
 			}
 			s.IDs = append(s.IDs, raw[i:j])
 			i = j
+		case '[':
+			attribute, end, ok := parseAttribute(raw, i)
+			if !ok {
+				return SimpleSelector{}, start, false
+			}
+			s.Attributes = append(s.Attributes, attribute)
+			i = end
 		default:
 			j := i
 			for j < n && isNameChar(rune(raw[j])) {
@@ -165,6 +179,55 @@ func parseSimple(raw string, start int) (SimpleSelector, int, bool) {
 	return s, i, true
 }
 
+func parseAttribute(raw string, start int) (AttributeSelector, int, bool) {
+	end := strings.Index(raw[start+1:], "]")
+	if end < 0 {
+		return AttributeSelector{}, start, false
+	}
+
+	end = start + 1 + end
+	content := strings.TrimSpace(raw[start+1 : end])
+	if content == "" {
+		return AttributeSelector{}, start, false
+	}
+
+	attribute := AttributeSelector{}
+	if equals := strings.Index(content, "="); equals >= 0 {
+		attribute.Name = strings.TrimSpace(content[:equals])
+		attribute.Value = strings.TrimSpace(content[equals+1:])
+		attribute.HasValue = true
+
+		if len(attribute.Value) >= 2 {
+			first := attribute.Value[0]
+			last := attribute.Value[len(attribute.Value)-1]
+			if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+				attribute.Value = attribute.Value[1 : len(attribute.Value)-1]
+			}
+		}
+	} else {
+		attribute.Name = content
+	}
+
+	if !isAttributeName(attribute.Name) {
+		return AttributeSelector{}, start, false
+	}
+
+	return attribute, end + 1, true
+}
+
 func isNameChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
+}
+
+func isAttributeName(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	for _, r := range name {
+		if !isNameChar(r) {
+			return false
+		}
+	}
+	return true
 }

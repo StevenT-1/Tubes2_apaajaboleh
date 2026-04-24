@@ -11,7 +11,7 @@ func matchSimple(s SimpleSelector, node *dom.Node) bool {
 		return false
 	}
 
-	if s.Universal && s.Tag == "" && len(s.IDs) == 0 && len(s.Classes) == 0 {
+	if s.Universal && s.Tag == "" && len(s.IDs) == 0 && len(s.Classes) == 0 && len(s.Attributes) == 0 {
 		return true
 	}
 	if s.Tag != "" && s.Tag != strings.ToLower(node.Tag) {
@@ -28,6 +28,15 @@ func matchSimple(s SimpleSelector, node *dom.Node) bool {
 	}
 	for _, c := range s.Classes {
 		if !nodeClasses[c] {
+			return false
+		}
+	}
+	for _, attribute := range s.Attributes {
+		value, ok := node.Attrs[attribute.Name]
+		if !ok {
+			return false
+		}
+		if attribute.HasValue && value != attribute.Value {
 			return false
 		}
 	}
