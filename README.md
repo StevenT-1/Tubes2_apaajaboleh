@@ -86,6 +86,14 @@ npm run build
 
 ## Cara Menjalankan
 
+### Melalui Web
+
+Aplikasi juga dapat diakses melalui URL berikut:
+
+```text
+http://tubes2-apaajaboleh.centralindia.cloudapp.azure.com/
+```
+
 ### Dengan Docker Compose
 
 Build dan jalankan aplikasi:
@@ -171,7 +179,7 @@ Port tersebut bukan port tetap proyek dan bisa berubah jika port itu sudah dipak
 
 ## Penulis
 
-Tim **apaajaboleh**.
+Kelompok **apaajaboleh**
 
 Anggota:
 
