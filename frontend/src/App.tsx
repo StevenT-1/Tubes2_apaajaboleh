@@ -2,11 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import InputForm, { type TraversalConfig } from "./components/InputForm";
 import DOMTreeViewer from "./components/DOMTreeViewer";
 import TraversalLog, { type TraversalStep } from "./components/TraversalLog";
-import type { DOMNode } from "./components/DOMTreeType";
+import {
+  findDOMNodeById,
+  formatDOMNodeLabel,
+  type DOMNode,
+} from "./components/DOMTreeType";
+import { TRAVERSAL_ALGORITHMS, type TraversalAlgorithm } from "./traversalTypes";
 import "./App.css";
 import bannerVideo from "./assets/nick-wilde-zootopia-2.mp4";
 
 type AppState = "idle" | "loading" | "result" | "error";
+type LCAStatus = "idle" | "loading" | "success" | "error";
+
+const API_ENDPOINTS = {
+  TRAVERSE: "/api/traverse",
+  LCA: "/api/lca",
+} as const;
 
 interface TraversalResult {
   tree: DOMNode;
@@ -17,11 +28,77 @@ interface TraversalResult {
   matchesFound: number;
 }
 
+interface LCAResponse {
+  nodeAId: string;
+  nodeBId: string;
+  lcaId: string;
+  lcaLabel?: string;
+  distance?: number;
+  pathA?: string[];
+  pathB?: string[];
+}
+
+function formatNodeMatchSummary(step: TraversalStep): string {
+  return Object.entries(step.attributes ?? {})
+    .filter(([key]) => key === "id" || key === "class")
+    .map(([key, value]) => (key === "id" ? `#${value}` : `.${value.split(" ").join(".")}`))
+    .join(" ");
+}
+
+function formatAlgorithmLabel(algorithm: TraversalAlgorithm): string {
+  if (algorithm === TRAVERSAL_ALGORITHMS.BFS_PARALLEL) return "BFS Parallel";
+  return algorithm.toUpperCase();
+}
+
+function formatSelectedNodeLabel(node: DOMNode | null): string {
+  if (!node) return "(belum dipilih)";
+  return formatDOMNodeLabel(node);
+}
+
+function getLCASelectionHint(
+  selectedNodeAId: string,
+  selectedNodeBId: string,
+  hasResult: boolean,
+): string {
+  if (!selectedNodeAId) {
+    return "Klik node pertama untuk memilih A.";
+  }
+  if (!selectedNodeBId) {
+    return "Klik node kedua untuk memilih B.";
+  }
+  if (!hasResult) {
+    return "Klik Find LCA untuk mencari lowest common ancestor.";
+  }
+  return "Klik node ketiga untuk memulai ulang dari A baru.";
+}
+
+function getLCASelectionStage(
+  selectedNodeAId: string,
+  selectedNodeBId: string,
+  hasResult: boolean,
+): string {
+  if (!selectedNodeAId) {
+    return "Menunggu A";
+  }
+  if (!selectedNodeBId) {
+    return "Menunggu B";
+  }
+  if (!hasResult) {
+    return "Siap cari LCA";
+  }
+  return "LCA ditemukan";
+}
+
 export default function App() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [result, setResult] = useState<TraversalResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastConfig, setLastConfig] = useState<TraversalConfig | null>(null);
+  const [selectedNodeAId, setSelectedNodeAId] = useState("");
+  const [selectedNodeBId, setSelectedNodeBId] = useState("");
+  const [lcaResult, setLcaResult] = useState<LCAResponse | null>(null);
+  const [lcaStatus, setLcaStatus] = useState<LCAStatus>("idle");
+  const [lcaMessage, setLcaMessage] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,9 +114,10 @@ export default function App() {
     setLastConfig(config);
     setResult(null);
     setErrorMsg("");
+    resetLCASelection();
 
     try {
-      const response = await fetch("/api/traverse", {
+      const response = await fetch(API_ENDPOINTS.TRAVERSE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
@@ -63,7 +141,85 @@ export default function App() {
     }
   }
 
+  function resetLCASelection() {
+    setSelectedNodeAId("");
+    setSelectedNodeBId("");
+    setLcaResult(null);
+    setLcaStatus("idle");
+    setLcaMessage("");
+  }
+
+  function handleSelectNodeForLCA(nodeId: string) {
+    setLcaResult(null);
+    setLcaStatus("idle");
+    setLcaMessage("");
+
+    if (!selectedNodeAId || selectedNodeBId) {
+      setSelectedNodeAId(nodeId);
+      setSelectedNodeBId("");
+      return;
+    }
+
+    if (selectedNodeAId === nodeId) {
+      setLcaMessage("Pilih node elemen kedua yang berbeda.");
+      return;
+    }
+
+    setSelectedNodeBId(nodeId);
+  }
+
+  function handleNonElementNodeClick() {
+    setLcaMessage("Hanya element node yang bisa dipilih untuk LCA.");
+  }
+
+  async function requestLCA() {
+    if (!lastConfig || !selectedNodeAId || !selectedNodeBId) return;
+
+    setLcaStatus("loading");
+    setLcaMessage("");
+
+    const sourcePayload =
+      lastConfig.sourceType === "html"
+        ? { html: lastConfig.source }
+        : { url: lastConfig.source };
+
+    try {
+      const response = await fetch(API_ENDPOINTS.LCA, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: lastConfig.sourceType,
+          nodeAId: selectedNodeAId,
+          nodeBId: selectedNodeBId,
+          ...sourcePayload,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response
+          .json()
+          .catch(() => ({ message: "Gagal menghitung LCA." }));
+        throw new Error(err.message ?? `HTTP ${response.status}`);
+      }
+
+      const data: LCAResponse = await response.json();
+      setLcaResult(data);
+      setLcaStatus("success");
+    } catch (error) {
+      setLcaMessage(
+        error instanceof Error ? error.message : "Terjadi kesalahan saat menghitung LCA.",
+      );
+      setLcaStatus("error");
+    }
+  }
+
   const matchedElements = result?.steps.filter((s) => s.event === "match") ?? [];
+  const selectedNodeA = result ? findDOMNodeById(result.tree, selectedNodeAId) : null;
+  const selectedNodeB = result ? findDOMNodeById(result.tree, selectedNodeBId) : null;
+  const lcaNode = result ? findDOMNodeById(result.tree, lcaResult?.lcaId) : null;
+  const canFindLCA = Boolean(selectedNodeAId && selectedNodeBId && lcaStatus !== "loading");
+  const lcaSelectionHint = getLCASelectionHint(selectedNodeAId, selectedNodeBId, Boolean(lcaResult));
+  const lcaSelectionStage = getLCASelectionStage(selectedNodeAId, selectedNodeBId, Boolean(lcaResult));
 
   return (
     <div className="site-wrap">
@@ -141,7 +297,7 @@ export default function App() {
                   <h3 className="state-title">Memproses...</h3>
                   {lastConfig && (
                     <div className="loading-meta">
-                      <span className="pill pill-accent">{lastConfig.algorithm.toUpperCase()}</span>
+                      <span className="pill pill-accent">{formatAlgorithmLabel(lastConfig.algorithm)}</span>
                       <code className="selector-code">{lastConfig.selector}</code>
                     </div>
                   )}
@@ -189,12 +345,101 @@ export default function App() {
                     <div className="section-header">
                       <h3 className="section-title">DOM Tree Visualization</h3>
                       <div className="section-meta">
-                        <span className="pill pill-accent">{lastConfig.algorithm.toUpperCase()}</span>
+                        <span className="pill pill-accent">{formatAlgorithmLabel(lastConfig.algorithm)}</span>
                         <code className="selector-code">{lastConfig.selector}</code>
                       </div>
                     </div>
+                      <div className="tree-hint-bar">
+                      <span className="tree-hint-label">Panduan LCA</span>
+                      <span className="tree-hint-text">{lcaSelectionHint}</span>
+                      <span className="tree-hint-stage">{lcaSelectionStage}</span>
+                    </div>
                     <div className="tree-container">
-                      <DOMTreeViewer root={result.tree} elapsedMs={result.elapsedMs} />
+                      <DOMTreeViewer
+                        root={result.tree}
+                        elapsedMs={result.elapsedMs}
+                        nodesVisited={result.nodesVisited}
+                        matchesFound={result.matchesFound}
+                        maxDepth={result.maxDepth}
+                        selectedAId={selectedNodeAId}
+                        selectedBId={selectedNodeBId}
+                        lcaId={lcaResult?.lcaId}
+                        onElementNodeClick={handleSelectNodeForLCA}
+                        onNonElementNodeClick={handleNonElementNodeClick}
+                      />
+                    </div>
+                    <div className="lca-panel">
+                      <div className="lca-panel-header">
+                        <div>
+                          <h4 className="lca-title">LCA Finder</h4>
+                          <div className="lca-flow-list">
+                            <p className="lca-flow-step">1. Klik node pertama untuk memilih A.</p>
+                            <p className="lca-flow-step">2. Klik node kedua untuk memilih B.</p>
+                            <p className="lca-flow-step">3. Klik Find LCA untuk mencari lowest common ancestor.</p>
+                          </div>
+                          <p className="lca-instruction">
+                            Klik node ketiga untuk memulai ulang dari A baru. Text node diabaikan.
+                          </p>
+                        </div>
+                        <div className="lca-actions">
+                          <button
+                            type="button"
+                            onClick={requestLCA}
+                            disabled={!canFindLCA}
+                            className="text-xs px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {lcaStatus === "loading" ? "Mencari..." : "Find LCA"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetLCASelection}
+                            className="text-xs px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="lca-selection-grid">
+                        <div className="lca-selection-card">
+                          <div className="lca-selection-header">
+                            <span className="lca-badge lca-badge-a">A</span>
+                            <span className="lca-selection-title">Node pertama</span>
+                          </div>
+                          <p className="lca-selection-value">{formatSelectedNodeLabel(selectedNodeA)}</p>
+                        </div>
+                        <div className="lca-selection-card">
+                          <div className="lca-selection-header">
+                            <span className="lca-badge lca-badge-b">B</span>
+                            <span className="lca-selection-title">Node kedua</span>
+                          </div>
+                          <p className="lca-selection-value">{formatSelectedNodeLabel(selectedNodeB)}</p>
+                        </div>
+                      </div>
+
+                      <div className="lca-result-card">
+                        <div className="lca-selection-header">
+                          <span className="lca-badge lca-badge-lca">LCA</span>
+                          <span className="lca-selection-title">Hasil lowest common ancestor</span>
+                        </div>
+                        <p className="lca-result-value">
+                          {lcaResult ? (lcaResult.lcaLabel ?? formatSelectedNodeLabel(lcaNode)) : "Belum dihitung."}
+                        </p>
+                        <p className="lca-result-meta">
+                          {lcaResult ? `Node ID: ${lcaResult.lcaId}` : "Node ID akan muncul setelah hasil ditemukan."}
+                        </p>
+                        {lcaResult && (
+                          <p className="lca-message">
+                            Distance: {lcaResult.distance ?? 0} edge(s)
+                          </p>
+                        )}
+                      </div>
+
+                      {lcaMessage && (
+                        <p className={`lca-message ${lcaStatus === "error" ? "lca-message-error" : ""}`}>
+                          {lcaMessage}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -220,13 +465,11 @@ export default function App() {
                         ) : (
                           <div className="matched-list">
                             {matchedElements.map((s) => {
-                              const attrs = Object.entries(s.attributes ?? {})
-                                .filter(([k]) => k === "id" || k === "class")
-                                .map(([k, v]) => (k === "id" ? `#${v}` : `.${v.split(" ").join(".")}`))
-                                .join(" ");
+                              const attrs = formatNodeMatchSummary(s);
                               return (
                                 <div key={s.step} className="matched-item">
                                   <div className="matched-item-header">
+                                    <span className="matched-order">{s.step}</span>
                                     <span className="matched-tag">&lt;{s.tag ?? "node"}&gt;</span>
                                     <span className="matched-depth">Depth: {s.depth}</span>
                                   </div>
@@ -245,6 +488,8 @@ export default function App() {
                             steps={result.steps}
                             algorithm={lastConfig.algorithm}
                             selector={lastConfig.selector}
+                            nodesVisited={result.nodesVisited}
+                            matchesFound={result.matchesFound}
                           />
                       </div>
                     </div>

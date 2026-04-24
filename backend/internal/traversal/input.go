@@ -25,8 +25,8 @@ func normalizeRequest(request Request) (Request, int, error) {
 	if normalized.Source == "" {
 		return Request{}, 0, fmt.Errorf("source must not be empty")
 	}
-	if normalized.Algorithm != "BFS" && normalized.Algorithm != "DFS" {
-		return Request{}, 0, fmt.Errorf("algorithm must be bfs or dfs")
+	if normalized.Algorithm != "BFS" && normalized.Algorithm != "DFS" && normalized.Algorithm != "BFS_PARALLEL" {
+		return Request{}, 0, fmt.Errorf("algorithm must be bfs, dfs, or bfs_parallel")
 	}
 	if normalized.Selector == "" {
 		return Request{}, 0, fmt.Errorf("selector must not be empty")

@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { TRAVERSAL_ALGORITHMS, type TraversalAlgorithm } from "../traversalTypes";
 
 export interface TraversalStep {
   step: number;
@@ -8,20 +9,28 @@ export interface TraversalStep {
   text?: string;
   attributes?: Record<string, string>;
   depth: number;
-  event: "visit" | "match" | "skip";
+  event: "visit" | "match";
 }
 
 interface TraversalLogProps {
   steps: TraversalStep[];
-  algorithm: "bfs" | "dfs";
+  algorithm: TraversalAlgorithm;
   selector: string;
+  nodesVisited: number;
+  matchesFound: number;
 }
 
 const EVENT_STYLES = {
   visit: { dot: "bg-amber-400", text: "text-amber-700 bg-amber-50", label: "visit" },
   match: { dot: "bg-green-500", text: "text-green-700 bg-green-50", label: "match" },
-  skip: { dot: "bg-gray-300", text: "text-gray-400 bg-gray-50", label: "skip" },
 };
+
+function formatAlgorithmLabel(algorithm: TraversalAlgorithm): string {
+  if (algorithm === TRAVERSAL_ALGORITHMS.BFS_PARALLEL) {
+    return "BFS Parallel";
+  }
+  return algorithm.toUpperCase();
+}
 
 function truncateText(text = "", maxLength = 100): string {
   const normalized = text.trim().replace(/\s+/g, " ");
@@ -43,13 +52,20 @@ function formatStepNodeLabel(step: TraversalStep, maxTextLength = 100): string {
   return attrs ? `<${tag} ${attrs}>` : `<${tag}>`;
 }
 
-function buildLogText(steps: TraversalStep[], algorithm: string, selector: string): string {
+function buildLogText(
+  steps: TraversalStep[],
+  algorithm: TraversalAlgorithm,
+  selector: string,
+  nodesVisited: number,
+  matchesFound: number,
+): string {
   const header = [
     "Traversal Log",
-    `Algoritma : ${algorithm.toUpperCase()}`,
+    `Algoritma : ${formatAlgorithmLabel(algorithm)}`,
     `Selector  : ${selector}`,
-    `Total step: ${steps.length}`,
-    `Matched   : ${steps.filter((step) => step.event === "match").length}`,
+    `Visited   : ${nodesVisited}`,
+    `Matched   : ${matchesFound}`,
+    `Steps     : ${steps.length}`,
     "-".repeat(52),
     "",
   ].join("\n");
@@ -65,15 +81,17 @@ function buildLogText(steps: TraversalStep[], algorithm: string, selector: strin
   return header + body;
 }
 
-export default function TraversalLog({ steps, algorithm, selector }: TraversalLogProps) {
+export default function TraversalLog({
+  steps,
+  algorithm,
+  selector,
+  nodesVisited,
+  matchesFound,
+}: TraversalLogProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
-  const matchCount = steps.filter((step) => step.event === "match").length;
-  const visitCount = steps.filter((step) => step.event === "visit").length;
-  const skipCount = steps.filter((step) => step.event === "skip").length;
-
   function handleDownload() {
-    const text = buildLogText(steps, algorithm, selector);
+    const text = buildLogText(steps, algorithm, selector, nodesVisited, matchesFound);
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -102,7 +120,7 @@ export default function TraversalLog({ steps, algorithm, selector }: TraversalLo
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold text-gray-700">Traversal Log</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 font-mono">
-            {algorithm.toUpperCase()}
+            {formatAlgorithmLabel(algorithm)}
           </span>
           <span className="text-xs text-gray-400 font-mono truncate max-w-[160px]">{selector}</span>
         </div>
@@ -114,12 +132,12 @@ export default function TraversalLog({ steps, algorithm, selector }: TraversalLo
         </button>
       </div>
 
-      <div className="flex gap-2 px-4 py-2 border-b border-gray-100 bg-white">
+      <div className="flex flex-wrap gap-2 px-4 py-2 border-b border-gray-100 bg-white">
         {[
-          { label: `${steps.length} total`, color: "bg-gray-100 text-gray-600" },
-          { label: `${visitCount} visited`, color: "bg-amber-50 text-amber-700" },
-          { label: `${matchCount} matched`, color: "bg-green-50 text-green-700" },
-          { label: `${skipCount} skipped`, color: "bg-gray-50 text-gray-400" },
+          { label: `${steps.length} backend steps`, color: "bg-gray-100 text-gray-600" },
+          { label: `${nodesVisited} visited`, color: "bg-amber-50 text-amber-700" },
+          { label: `${matchesFound} matched`, color: "bg-green-50 text-green-700" },
+          { label: "Urutan dari backend", color: "bg-gray-50 text-gray-500" },
         ].map((pill) => (
           <span key={pill.label} className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${pill.color}`}>
             {pill.label}

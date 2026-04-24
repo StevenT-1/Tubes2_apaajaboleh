@@ -25,7 +25,7 @@ func Run(ctx context.Context, request Request) (Result, error) {
 		return Result{}, err
 	}
 
-	tree, infoByNode, err := buildResponseTree(root)
+	treeData, err := buildResponseTree(root)
 	if err != nil {
 		return Result{}, err
 	}
@@ -44,7 +44,7 @@ func Run(ctx context.Context, request Request) (Result, error) {
 
 	steps := make([]Step, 0, len(traversalResult.VisitedOrder))
 	for _, node := range traversalResult.VisitedOrder {
-		info, ok := infoByNode[node]
+		info, ok := treeData.InfoByNode[node]
 		if !ok {
 			continue
 		}
@@ -76,25 +76,28 @@ func Run(ctx context.Context, request Request) (Result, error) {
 
 	matchesFound := 0
 	for _, node := range traversalResult.Matches {
-		if _, ok := infoByNode[node]; ok {
+		if _, ok := treeData.InfoByNode[node]; ok {
 			matchesFound++
 		}
 	}
 
 	return Result{
-		Tree:         tree,
+		Tree:         treeData.Tree,
 		Steps:        steps,
 		ElapsedMs:    traversalResult.ElapsedNs / int64(1_000_000),
 		NodesVisited: len(steps),
-		MaxDepth:     maxTreeDepth(tree, 0),
+		MaxDepth:     maxTreeDepth(treeData.Tree, 0),
 		MatchesFound: matchesFound,
 	}, nil
 }
 
 func runTraversal(root *dom.Node, parsedSelector selector.Selector, algorithm string, limit int) selector.TraversalResult {
-	if algorithm == "DFS" {
+	switch algorithm {
+	case "DFS":
 		return selector.DFS(root, parsedSelector, limit)
+	case "BFS_PARALLEL":
+		return selector.BFSParallel(root, parsedSelector, limit)
+	default:
+		return selector.BFS(root, parsedSelector, limit)
 	}
-
-	return selector.BFS(root, parsedSelector, limit)
 }

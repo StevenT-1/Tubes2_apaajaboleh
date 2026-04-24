@@ -6,21 +6,32 @@ import (
 	"tubes2/backend/internal/dom"
 )
 
+type responseTreeData struct {
+	Tree       *TreeNode
+	InfoByNode map[*dom.Node]responseNodeInfo
+	NodeByID   map[string]*dom.Node
+	IDByNode   map[*dom.Node]string
+}
+
 // buildResponseTree converts the parser DOM into the tree shape used by the API/UI.
-// We keep this separate because the parser tree contains internal-only details and
-// has no stable node IDs or UI state.
-func buildResponseTree(root *dom.Node) (*TreeNode, map[*dom.Node]responseNodeInfo, error) {
+// It also keeps ID mappings so other features, such as LCA, can find the
+// original *dom.Node from a frontend node ID.
+func buildResponseTree(root *dom.Node) (responseTreeData, error) {
 	topLevelElements := childElements(root)
 	if len(topLevelElements) == 0 {
-		return nil, nil, fmt.Errorf("html document has no element nodes")
+		return responseTreeData{}, fmt.Errorf("html document has no element nodes")
 	}
 
-	infoByNode := make(map[*dom.Node]responseNodeInfo)
+	data := responseTreeData{
+		InfoByNode: make(map[*dom.Node]responseNodeInfo),
+		NodeByID:   make(map[string]*dom.Node),
+		IDByNode:   make(map[*dom.Node]string),
+	}
 	nextID := 0
 
 	if len(topLevelElements) == 1 {
-		tree := buildResponseNode(topLevelElements[0], 0, infoByNode, &nextID)
-		return tree, infoByNode, nil
+		data.Tree = buildResponseNode(topLevelElements[0], 0, &data, &nextID)
+		return data, nil
 	}
 
 	fragment := &TreeNode{
@@ -31,16 +42,18 @@ func buildResponseTree(root *dom.Node) (*TreeNode, map[*dom.Node]responseNodeInf
 		Children:   []*TreeNode{},
 		State:      StateIdle,
 	}
+	data.Tree = fragment
+	data.IDByNode[root] = fragment.ID
 	nextID++
 
 	for _, child := range topLevelElements {
-		fragment.Children = append(fragment.Children, buildResponseNode(child, 1, infoByNode, &nextID))
+		fragment.Children = append(fragment.Children, buildResponseNode(child, 1, &data, &nextID))
 	}
 
-	return fragment, infoByNode, nil
+	return data, nil
 }
 
-func buildResponseNode(node *dom.Node, depth int, infoByNode map[*dom.Node]responseNodeInfo, nextID *int) *TreeNode {
+func buildResponseNode(node *dom.Node, depth int, data *responseTreeData, nextID *int) *TreeNode {
 	nodeType := string(node.Type)
 	tag := node.Tag
 	if node.Type == dom.NodeText {
@@ -58,17 +71,19 @@ func buildResponseNode(node *dom.Node, depth int, infoByNode map[*dom.Node]respo
 	}
 	*nextID = *nextID + 1
 
-	infoByNode[node] = responseNodeInfo{
+	data.InfoByNode[node] = responseNodeInfo{
 		ID:    treeNode.ID,
 		Depth: depth,
 		Tree:  treeNode,
 	}
+	data.NodeByID[treeNode.ID] = node
+	data.IDByNode[node] = treeNode.ID
 
 	for _, child := range node.Children {
 		if child == nil || child.Type == dom.NodeDocument {
 			continue
 		}
-		treeNode.Children = append(treeNode.Children, buildResponseNode(child, depth+1, infoByNode, nextID))
+		treeNode.Children = append(treeNode.Children, buildResponseNode(child, depth+1, data, nextID))
 	}
 
 	return treeNode

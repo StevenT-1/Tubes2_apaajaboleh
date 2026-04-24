@@ -31,10 +31,17 @@ function flattenToFlow(
   parentId: string | null,
   nodesAcc: Node[],
   edgesAcc: Edge[],
+  selectedAId = "",
+  selectedBId = "",
+  lcaId = "",
   isRoot = false
 ) {
   const attrs = node.attributes ?? {};
   const type = node.type ?? "element";
+  const markers: string[] = [];
+  if (node.id === selectedAId) markers.push("A");
+  if (node.id === selectedBId) markers.push("B");
+  if (node.id === lcaId) markers.push("LCA");
 
   nodesAcc.push({
     id: node.id,
@@ -48,6 +55,8 @@ function flattenToFlow(
       classes: attrs.class,
       state: node.state ?? "idle",
       isRoot,
+      isSelectableForLCA: type === "element" && node.tag !== "fragment",
+      markers,
     },
   });
 
@@ -61,13 +70,15 @@ function flattenToFlow(
     });
   }
 
-  node.children?.forEach((child) => flattenToFlow(child, node.id, nodesAcc, edgesAcc));
+  node.children?.forEach((child) =>
+    flattenToFlow(child, node.id, nodesAcc, edgesAcc, selectedAId, selectedBId, lcaId)
+  );
 }
 
-function buildFlowElements(root: DOMNode) {
+function buildFlowElements(root: DOMNode, selectedAId = "", selectedBId = "", lcaId = "") {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  flattenToFlow(root, null, nodes, edges, true);
+  flattenToFlow(root, null, nodes, edges, selectedAId, selectedBId, lcaId, true);
   return getLayoutedElements(nodes, edges);
 }
 
@@ -122,19 +133,6 @@ function Legend() {
   );
 }
 
-// ── max depth util ───────────────────────────────────────────────────────────
-
-function getMaxDepth(node: DOMNode, depth = 0): number {
-  if (!node.children?.length) return depth;
-  return Math.max(...node.children.map((c) => getMaxDepth(c, depth + 1)));
-}
-
-function countByState(node: DOMNode, state: NodeState): number {
-  let count = node.state === state ? 1 : 0;
-  node.children?.forEach((c) => { count += countByState(c, state); });
-  return count;
-}
-
 function countAll(node: DOMNode): number {
   return 1 + (node.children ?? []).reduce((acc, c) => acc + countAll(c), 0);
 }
@@ -144,24 +142,46 @@ function countAll(node: DOMNode): number {
 interface DOMTreeViewerProps {
   root: DOMNode;
   elapsedMs?: number;
+  nodesVisited?: number;
+  matchesFound?: number;
+  maxDepth?: number;
+  selectedAId?: string;
+  selectedBId?: string;
+  lcaId?: string;
+  onElementNodeClick?: (nodeId: string) => void;
+  onNonElementNodeClick?: () => void;
 }
 
-export default function DOMTreeViewer({ root, elapsedMs }: DOMTreeViewerProps) {
+export default function DOMTreeViewer({
+  root,
+  elapsedMs,
+  nodesVisited,
+  matchesFound,
+  maxDepth,
+  selectedAId = "",
+  selectedBId = "",
+  lcaId = "",
+  onElementNodeClick,
+  onNonElementNodeClick,
+}: DOMTreeViewerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
 
   useEffect(() => {
-    const { nodes: n, edges: e } = buildFlowElements(root);
+    const { nodes: n, edges: e } = buildFlowElements(root, selectedAId, selectedBId, lcaId);
     setNodes(n);
     setEdges(e);
-  }, [root]);
+  }, [root, selectedAId, selectedBId, lcaId, setNodes, setEdges]);
 
-  const stats = useMemo(() => ({
-    total: countAll(root),
-    visited: countByState(root, "visited") + countByState(root, "matched"),
-    matched: countByState(root, "matched"),
-    depth: getMaxDepth(root),
-  }), [root]);
+  const stats = useMemo(
+    () => ({
+      total: countAll(root),
+      visited: nodesVisited ?? 0,
+      matched: matchesFound ?? 0,
+      depth: maxDepth ?? 0,
+    }),
+    [root, nodesVisited, matchesFound, maxDepth],
+  );
 
   return (
     <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden" style={{ height: 520 }}>
@@ -179,6 +199,14 @@ export default function DOMTreeViewer({ root, elapsedMs }: DOMTreeViewerProps) {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeClick={(_, node) => {
+            const data = node.data as { isSelectableForLCA?: boolean };
+            if (data.isSelectableForLCA) {
+              onElementNodeClick?.(node.id);
+              return;
+            }
+            onNonElementNodeClick?.();
+          }}
           nodeTypes={nodeTypes}
           fitView
           fitViewOptions={{ padding: 0.2 }}

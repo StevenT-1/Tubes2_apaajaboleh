@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { TRAVERSAL_ALGORITHMS, type TraversalAlgorithm } from "../traversalTypes";
 
 export interface TraversalConfig {
   sourceType: "url" | "html";
   source: string;
-  algorithm: "bfs" | "dfs";
+  algorithm: TraversalAlgorithm;
   selector: string;
   resultMode: "all" | "topn";
   topN: number;
@@ -23,6 +24,28 @@ const SELECTOR_HINTS: Record<string, string> = {
   "~": "General sibling combinator",
 };
 
+const ALGORITHM_OPTIONS: {
+  value: TraversalAlgorithm;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: TRAVERSAL_ALGORITHMS.BFS,
+    label: "BFS",
+    description: "Menelusuri node level demi level dari akar.",
+  },
+  {
+    value: TRAVERSAL_ALGORITHMS.DFS,
+    label: "DFS",
+    description: "Masuk sedalam mungkin ke satu cabang, lalu backtrack.",
+  },
+  {
+    value: TRAVERSAL_ALGORITHMS.BFS_PARALLEL,
+    label: "BFS Parallel",
+    description: "Memproses node pada level BFS yang sama secara konkuren.",
+  },
+];
+
 function getSelectorHint(val: string): string {
   if (!val.trim()) return "";
   const first = val.trim()[0];
@@ -37,7 +60,7 @@ function getSelectorHint(val: string): string {
 export default function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
   const [sourceType, setSourceType] = useState<"url" | "html">("url");
   const [source, setSource] = useState("");
-  const [algorithm, setAlgorithm] = useState<"bfs" | "dfs">("bfs");
+  const [algorithm, setAlgorithm] = useState<TraversalAlgorithm>(TRAVERSAL_ALGORITHMS.BFS);
   const [selector, setSelector] = useState("");
   const [resultMode, setResultMode] = useState<"all" | "topn">("all");
   const [topN, setTopN] = useState(5);
@@ -105,24 +128,27 @@ export default function InputForm({ onSubmit, isLoading = false }: InputFormProp
       {/* Algoritma */}
       <div className="rounded-xl border border-gray-200 p-4">
         <p className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-3">Algoritma Traversal</p>
-        <div className="grid grid-cols-2 gap-2">
-          {(["bfs", "dfs"] as const).map((algo) => (
+        <div className="algorithm-options">
+          {ALGORITHM_OPTIONS.map((option) => (
             <button
-              key={algo}
-              onClick={() => setAlgorithm(algo)}
-              className={`flex flex-col items-center py-3 rounded-lg border text-sm font-medium transition-colors ${
-                algorithm === algo
+              key={option.value}
+              onClick={() => setAlgorithm(option.value)}
+              className={`algorithm-option-button flex flex-col items-start rounded-lg border text-sm font-medium transition-colors ${
+                algorithm === option.value
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 text-gray-500 hover:bg-gray-50"
               }`}
             >
-              <span className="text-base font-semibold">{algo.toUpperCase()}</span>
-              <span className={`text-xs font-normal mt-0.5 ${algorithm === algo ? "text-blue-400" : "text-gray-400"}`}>
-                {algo === "bfs" ? "Breadth First Search" : "Depth First Search"}
+              <span className="algorithm-option-label text-base font-semibold">{option.label}</span>
+              <span className="algorithm-option-description text-xs font-normal mt-1">
+                {option.description}
               </span>
             </button>
           ))}
         </div>
+        <p className="algorithm-option-note text-xs text-gray-400 mt-2">
+          BFS Parallel memproses node pada level BFS yang sama secara konkuren. DFS tetap sequential.
+        </p>
       </div>
 
       {/* CSS Selector */}
