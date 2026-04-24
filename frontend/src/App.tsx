@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import InputForm, { type TraversalConfig } from "./components/InputForm";
 import DOMTreeViewer from "./components/DOMTreeViewer";
 import TraversalLog, { type TraversalStep } from "./components/TraversalLog";
@@ -18,6 +18,7 @@ const API_ENDPOINTS = {
   TRAVERSE: "/api/traverse",
   LCA: "/api/lca",
 } as const;
+type AnimState = "idle" | "playing" | "paused" | "done";
 
 interface TraversalResult {
   tree: DOMNode;
@@ -89,6 +90,26 @@ function getLCASelectionStage(
   return "LCA ditemukan";
 }
 
+//  Rebuild tree dengan state animasi 
+
+function resetTree(node: DOMNode): DOMNode {
+  return { ...node, state: "idle", children: (node.children ?? []).map(resetTree) };
+}
+
+/** Set state node tertentu berdasarkan map {nodeId -> state} */
+function applyStates(
+  node: DOMNode,
+  stateMap: Map<string, DOMNode["state"]>
+): DOMNode {
+  return {
+    ...node,
+    state: stateMap.get(node.id) ?? "idle",
+    children: (node.children ?? []).map((c) => applyStates(c, stateMap)),
+  };
+}
+
+const ANIM_DELAY_MS = 500;
+
 export default function App() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [result, setResult] = useState<TraversalResult | null>(null);
@@ -101,6 +122,11 @@ export default function App() {
   const [lcaMessage, setLcaMessage] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // ── Animasi state ──
+  const [animState, setAnimState] = useState<AnimState>("idle");
+  const [animStepIdx, setAnimStepIdx] = useState(0);
+  const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (appState === "result" && resultsRef.current) {
       setTimeout(() => {
@@ -109,12 +135,80 @@ export default function App() {
     }
   }, [appState]);
 
+  // Reset animasi saat result baru
+  useEffect(() => {
+    if (result) {
+      clearAnimInterval();
+      setAnimState("idle");
+      setAnimStepIdx(0);
+    }
+  }, [result]);
+
+  useEffect(() => {
+    if (animState !== "playing" || !result) return;
+
+    animIntervalRef.current = setInterval(() => {
+      setAnimStepIdx((prev) => {
+        if (prev >= result.steps.length) return prev;
+        return prev + 1;
+      });
+    }, ANIM_DELAY_MS);
+
+    return () => clearAnimInterval();
+  }, [animState, result]);
+
+  useEffect(() => {
+    if (animState === "playing" && result && animStepIdx >= result.steps.length) {
+      clearAnimInterval();
+      setAnimState("done");
+    }
+  }, [animStepIdx, animState, result]);
+
+  function clearAnimInterval() {
+    if (animIntervalRef.current) {
+      clearInterval(animIntervalRef.current);
+      animIntervalRef.current = null;
+    }
+  }
+
+  const animatedTree = useMemo(() => {
+    if (!result || animState === "idle") return null;
+    const upTo = Math.min(animStepIdx, result.steps.length);
+    const stateMap = new Map<string, DOMNode["state"]>();
+    for (let i = 0; i < upTo - 1; i++) {
+      const s = result.steps[i];
+      stateMap.set(s.nodeId, s.event === "match" ? "matched" : s.event === "visit" ? "visited" : "idle");
+    }
+    if (upTo > 0) stateMap.set(result.steps[upTo - 1].nodeId, "active");
+    return applyStates(resetTree(result.tree), stateMap);
+  }, [result, animStepIdx, animState]);
+
+  function handlePlayAnimation() {
+    if (!result) return;
+    if (animState === "idle" || animState === "done") setAnimStepIdx(0);
+    setAnimState("playing");
+  }
+
+  function handlePauseAnimation() {
+    clearAnimInterval();
+    setAnimState("paused");
+  }
+
+  function handleResetAnimation() {
+    clearAnimInterval();
+    setAnimState("idle");
+    setAnimStepIdx(0);
+  }
+
+  useEffect(() => () => clearAnimInterval(), []);
+
   async function handleSubmit(config: TraversalConfig) {
     setAppState("loading");
     setLastConfig(config);
     setResult(null);
     setErrorMsg("");
     resetLCASelection();
+    handleResetAnimation();
 
     try {
       const response = await fetch(API_ENDPOINTS.TRAVERSE, {
@@ -131,6 +225,7 @@ export default function App() {
       }
 
       const data: TraversalResult = await response.json();
+
       setResult(data);
       setAppState("result");
     } catch (error) {
@@ -220,6 +315,11 @@ export default function App() {
   const canFindLCA = Boolean(selectedNodeAId && selectedNodeBId && lcaStatus !== "loading");
   const lcaSelectionHint = getLCASelectionHint(selectedNodeAId, selectedNodeBId, Boolean(lcaResult));
   const lcaSelectionStage = getLCASelectionStage(selectedNodeAId, selectedNodeBId, Boolean(lcaResult));
+  const displayTree = (animState !== "idle" && animatedTree) ? animatedTree : result?.tree ?? null;
+  const activeNodeId =
+    (animState === "playing" || animState === "paused") && result && animStepIdx > 0 && animStepIdx <= result.steps.length
+      ? result.steps[animStepIdx - 1]?.nodeId
+      : undefined;
 
   return (
     <div className="site-wrap">
@@ -317,7 +417,7 @@ export default function App() {
               )}
 
               {/* RESULT STATE */}
-              {appState === "result" && result && lastConfig && (
+              {appState === "result" && result && lastConfig && displayTree && (
                 <div ref={resultsRef} className="result-layout animate-fade-in">
                   
                   {/* 1. Top Stat Cards */}
@@ -349,14 +449,73 @@ export default function App() {
                         <code className="selector-code">{lastConfig.selector}</code>
                       </div>
                     </div>
-                      <div className="tree-hint-bar">
+                        {/* ── ANIMATION CONTROLS ── */}
+                    <div className="anim-controls">
+                      <div className="anim-controls-left">
+                        {/* Play / Resume */}
+                        {(animState === "idle" || animState === "paused" || animState === "done") && (
+                          <button className="anim-btn anim-btn-play" onClick={handlePlayAnimation}>
+                            <span className="anim-btn-icon">▶</span>
+                            {animState === "idle" ? "Putar Animasi" : animState === "done" ? "Ulangi" : "Lanjutkan"}
+                          </button>
+                        )}
+                        {/* Pause */}
+                        {animState === "playing" && (
+                          <button className="anim-btn anim-btn-pause" onClick={handlePauseAnimation}>
+                            <span className="anim-btn-icon">⏸</span>
+                            Pause
+                          </button>
+                        )}
+                        {/* Reset */}
+                        {animState !== "idle" && (
+                          <button className="anim-btn anim-btn-reset" onClick={handleResetAnimation}>
+                            <span className="anim-btn-icon">↺</span>
+                            Reset
+                          </button>
+                        )}
+                        {/* Status badge */}
+                        {animState === "playing" && (
+                          <span className="anim-status-badge anim-status-playing">
+                            <span className="anim-status-dot" />
+                            Animasi berjalan...
+                          </span>
+                        )}
+                        {animState === "paused" && (
+                          <span className="anim-status-badge anim-status-paused">
+                            ⏸ Dijeda
+                          </span>
+                        )}
+                        {animState === "done" && (
+                          <span className="anim-status-badge anim-status-done">
+                            ✓ Selesai
+                          </span>
+                        )}
+                      </div>
+                      {/* Progress */}
+                      {animState !== "idle" && (
+                        <div className="anim-controls-right">
+                          <span className="anim-step-label">
+                            {Math.max(0, animStepIdx)} / {result.steps.length}
+                          </span>
+                          <div className="anim-progress-track">
+                            <div
+                              className="anim-progress-fill"
+                              style={{
+                                width: `${(Math.max(0, animStepIdx) / result.steps.length) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="tree-hint-bar">
                       <span className="tree-hint-label">Panduan LCA</span>
                       <span className="tree-hint-text">{lcaSelectionHint}</span>
                       <span className="tree-hint-stage">{lcaSelectionStage}</span>
                     </div>
                     <div className="tree-container">
                       <DOMTreeViewer
-                        root={result.tree}
+                        root={displayTree}
                         elapsedMs={result.elapsedMs}
                         nodesVisited={result.nodesVisited}
                         matchesFound={result.matchesFound}
@@ -366,6 +525,7 @@ export default function App() {
                         lcaId={lcaResult?.lcaId}
                         onElementNodeClick={handleSelectNodeForLCA}
                         onNonElementNodeClick={handleNonElementNodeClick}
+                        animHighlightId={activeNodeId}
                       />
                     </div>
                     <div className="lca-panel">
@@ -490,6 +650,7 @@ export default function App() {
                             selector={lastConfig.selector}
                             nodesVisited={result.nodesVisited}
                             matchesFound={result.matchesFound}
+                            activeStep={animState !== "idle" ? animStepIdx : undefined}
                           />
                       </div>
                     </div>

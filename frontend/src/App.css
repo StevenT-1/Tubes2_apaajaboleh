@@ -1261,3 +1261,192 @@ button.text-xs.px-4:hover {
 }
 
 .text-green-700 { color: var(--green); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ANIMATION CONTROLS
+───────────────────────────────────────────────────────────────────────────── */
+
+.anim-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--card-bg-2);
+  border: 2px solid var(--border);
+  border-bottom: none;
+  flex-wrap: wrap;
+}
+
+.anim-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.anim-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Base button */
+.anim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 0;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+
+.anim-btn-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+/* Play button */
+.anim-btn-play {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  color: #fff;
+}
+.anim-btn-play:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(92, 122, 82, 0.35);
+}
+.anim-btn-play:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Pause button */
+.anim-btn-pause {
+  background: #f59e0b;
+  border-color: #d97706;
+  color: #fff;
+}
+.anim-btn-pause:hover {
+  background: #d97706;
+  border-color: #b45309;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.35);
+}
+
+/* Reset button */
+.anim-btn-reset {
+  background: var(--card-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+.anim-btn-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+/* Status badges */
+.anim-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.70rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 0;
+  letter-spacing: 0.03em;
+}
+
+.anim-status-playing {
+  background: rgba(92, 122, 82, 0.12);
+  color: var(--accent-dark);
+  border: 1.5px solid var(--accent-border);
+}
+
+.anim-status-paused {
+  background: rgba(245, 158, 11, 0.10);
+  color: #b45309;
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+}
+
+.anim-status-done {
+  background: rgba(34, 197, 94, 0.10);
+  color: #16a34a;
+  border: 1.5px solid rgba(34, 197, 94, 0.35);
+}
+
+/* Pulsing dot inside "Animasi berjalan..." badge */
+.anim-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: anim-dot-pulse 1s ease-in-out infinite;
+}
+
+@keyframes anim-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Step counter label */
+.anim-step-label {
+  font-size: 0.70rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Progress bar */
+.anim-progress-track {
+  width: 140px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.anim-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 0;
+  transition: width 0.3s ease;
+}
+
+/* Active node state in DOMNodeCard — override for rigid design */
+.bg-sky-50.border-sky-500.text-sky-800 {
+  background: #e0f2fe !important;
+  border-color: #0ea5e9 !important;
+  color: #0c4a6e !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25), 0 4px 16px rgba(14, 165, 233, 0.20) !important;
+  animation: active-node-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes active-node-pulse {
+  from {
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.20), 0 2px 8px rgba(14, 165, 233, 0.15);
+    transform: scale(1);
+  }
+  to {
+    box-shadow: 0 0 0 5px rgba(14, 165, 233, 0.15), 0 6px 20px rgba(14, 165, 233, 0.30);
+    transform: scale(1.04);
+  }
+}
+
+/* Active log row highlight */
+.bg-sky-50.border-l-2.border-l-sky-500 {
+  background: #e0f2fe !important;
+  border-left-color: #0ea5e9 !important;
+}
+

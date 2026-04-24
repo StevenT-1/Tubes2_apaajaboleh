@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { TRAVERSAL_ALGORITHMS, type TraversalAlgorithm } from "../traversalTypes";
 
 export interface TraversalStep {
@@ -18,6 +18,7 @@ interface TraversalLogProps {
   selector: string;
   nodesVisited: number;
   matchesFound: number;
+  activeStep?: number;
 }
 
 const EVENT_STYLES = {
@@ -74,7 +75,9 @@ function buildLogText(
     .map((step) => {
       const label = formatStepNodeLabel(step, 160);
       const indent = "  ".repeat(step.depth);
-      return `[${String(step.step).padStart(4, "0")}] ${step.event.toUpperCase().padEnd(5)} depth=${step.depth} ${indent}${label}`;
+      return `[${String(step.step).padStart(4, "0")}] ${step.event
+        .toUpperCase()
+        .padEnd(5)} depth=${step.depth} ${indent}${label}`;
     })
     .join("\n");
 
@@ -87,8 +90,27 @@ export default function TraversalLog({
   selector,
   nodesVisited,
   matchesFound,
+  activeStep,
 }: TraversalLogProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const activeRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeStep == null || !listRef.current || !activeRowRef.current) return;
+
+    const container = listRef.current;
+    const row = activeRowRef.current;
+    const rowTop = row.offsetTop;
+    const rowBottom = rowTop + row.clientHeight;
+    const containerTop = container.scrollTop;
+    const containerBottom = containerTop + container.clientHeight;
+
+    if (rowTop < containerTop) {
+      container.scrollTop = rowTop - 8;
+    } else if (rowBottom > containerBottom) {
+      container.scrollTop = rowBottom - container.clientHeight + 8;
+    }
+  }, [activeStep]);
 
   function handleDownload() {
     const text = buildLogText(steps, algorithm, selector, nodesVisited, matchesFound);
@@ -155,26 +177,38 @@ export default function TraversalLog({
             const eventStyle = EVENT_STYLES[step.event];
             const nodeLabel = formatStepNodeLabel(step);
             const rowTitle = `${step.step} ${eventStyle.label} d=${step.depth} ${nodeLabel}`;
+            const isActive = activeStep === step.step;
 
             return (
               <div
                 key={step.step}
+                ref={isActive ? activeRowRef : null}
                 title={rowTitle}
-                className={`traversal-log-row flex items-start gap-3 whitespace-nowrap px-4 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                  step.event === "match" ? "bg-green-50/20" : ""
+                className={`traversal-log-row flex items-center gap-5 whitespace-nowrap px-4 py-2.5 border-b border-gray-50 transition-colors ${
+                  isActive
+                    ? "bg-sky-50 border-l-2 border-l-sky-500"
+                    : step.event === "match"
+                      ? "bg-green-50/20"
+                      : "hover:bg-gray-50"
                 }`}
               >
-                <span className="text-[10px] font-mono text-gray-300 w-8 shrink-0 pt-0.5 text-right">
+                <span
+                  className={`text-[10px] font-mono w-8 shrink-0 text-right ${
+                    isActive ? "text-sky-500 font-bold" : "text-gray-300"
+                  }`}
+                >
                   {step.step}
                 </span>
 
-                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${eventStyle.dot}`} />
-
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${eventStyle.text}`}>
-                  {eventStyle.label}
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 min-w-[42px] text-center ${
+                    isActive ? "text-sky-700 bg-sky-100" : eventStyle.text
+                  }`}
+                >
+                  {isActive ? "active" : eventStyle.label}
                 </span>
 
-                <span className="text-[10px] font-mono text-gray-300 shrink-0 pt-0.5">
+                <span className="text-[10px] font-mono text-gray-400 shrink-0 min-w-[32px]">
                   d={step.depth}
                 </span>
 
@@ -191,7 +225,11 @@ export default function TraversalLog({
       </div>
 
       <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 bg-gray-50">
-        <span className="text-xs text-gray-400">{steps.length} langkah tercatat</span>
+        <span className="text-xs text-gray-400">
+          {activeStep != null && activeStep > 0
+            ? `Step ${activeStep} / ${steps.length}`
+            : `${steps.length} langkah tercatat`}
+        </span>
         <button
           onClick={handleScrollTop}
           className="text-xs text-gray-400 hover:text-gray-600 transition-colors"

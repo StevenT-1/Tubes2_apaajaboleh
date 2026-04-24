@@ -18,7 +18,6 @@ import { getLayoutedElements } from "./dagreLayout";
 
 const nodeTypes = { domNode: DOMNodeCard };
 
-// ── helpers ──────────────────────────────────────────────────────────────────
 function compactText(text = "", maxLength = 28): string {
   const normalized = text.trim().replace(/\s+/g, " ");
   const chars = Array.from(normalized);
@@ -34,10 +33,13 @@ function flattenToFlow(
   selectedAId = "",
   selectedBId = "",
   lcaId = "",
-  isRoot = false
+  animHighlightId?: string,
+  isRoot = false,
 ) {
   const attrs = node.attributes ?? {};
   const type = node.type ?? "element";
+  const isActive = node.id === animHighlightId;
+
   const markers: string[] = [];
   if (node.id === selectedAId) markers.push("A");
   if (node.id === selectedBId) markers.push("B");
@@ -46,14 +48,14 @@ function flattenToFlow(
   nodesAcc.push({
     id: node.id,
     type: "domNode",
-    position: { x: 0, y: 0 }, // dagre will override
+    position: { x: 0, y: 0 },
     data: {
       type,
       tag: node.tag,
       textPreview: type === "text" ? compactText(node.text) : undefined,
       id: attrs.id,
       classes: attrs.class,
-      state: node.state ?? "idle",
+      state: isActive ? "active" : (node.state ?? "idle"),
       isRoot,
       isSelectableForLCA: type === "element" && node.tag !== "fragment",
       markers,
@@ -61,28 +63,46 @@ function flattenToFlow(
   });
 
   if (parentId) {
+    const isActiveEdge = node.id === animHighlightId;
+
     edgesAcc.push({
       id: `e-${parentId}-${node.id}`,
       source: parentId,
       target: node.id,
-      style: { stroke: "#d1d5db", strokeWidth: 1.5 },
-      animated: false,
+      style: isActiveEdge
+        ? { stroke: "#0ea5e9", strokeWidth: 2.5 }
+        : { stroke: "#d1d5db", strokeWidth: 1.5 },
+      animated: isActiveEdge,
     });
   }
 
   node.children?.forEach((child) =>
-    flattenToFlow(child, node.id, nodesAcc, edgesAcc, selectedAId, selectedBId, lcaId)
+    flattenToFlow(
+      child,
+      node.id,
+      nodesAcc,
+      edgesAcc,
+      selectedAId,
+      selectedBId,
+      lcaId,
+      animHighlightId,
+    ),
   );
 }
 
-function buildFlowElements(root: DOMNode, selectedAId = "", selectedBId = "", lcaId = "") {
+function buildFlowElements(
+  root: DOMNode,
+  selectedAId = "",
+  selectedBId = "",
+  lcaId = "",
+  animHighlightId?: string,
+) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  flattenToFlow(root, null, nodes, edges, selectedAId, selectedBId, lcaId, true);
+
+  flattenToFlow(root, null, nodes, edges, selectedAId, selectedBId, lcaId, animHighlightId, true);
   return getLayoutedElements(nodes, edges);
 }
-
-// ── stats bar ────────────────────────────────────────────────────────────────
 
 interface StatsBarProps {
   totalNodes: number;
@@ -113,14 +133,14 @@ function StatsBar({ totalNodes, visitedCount, matchedCount, maxDepth, elapsedMs 
   );
 }
 
-// ── legend ───────────────────────────────────────────────────────────────────
-
 function Legend() {
   const items: { state: NodeState; label: string; dot: string }[] = [
     { state: "idle", label: "Belum dikunjungi", dot: "bg-gray-300" },
+    { state: "active", label: "Sedang dikunjungi", dot: "bg-sky-500" },
     { state: "visited", label: "Dikunjungi", dot: "bg-amber-400" },
     { state: "matched", label: "Cocok selector", dot: "bg-green-500" },
   ];
+
   return (
     <div className="flex gap-3 px-4 py-1.5 border-t border-gray-100 bg-white text-xs">
       {items.map((i) => (
@@ -137,8 +157,6 @@ function countAll(node: DOMNode): number {
   return 1 + (node.children ?? []).reduce((acc, c) => acc + countAll(c), 0);
 }
 
-// ── main component ────────────────────────────────────────────────────────────
-
 interface DOMTreeViewerProps {
   root: DOMNode;
   elapsedMs?: number;
@@ -150,6 +168,7 @@ interface DOMTreeViewerProps {
   lcaId?: string;
   onElementNodeClick?: (nodeId: string) => void;
   onNonElementNodeClick?: () => void;
+  animHighlightId?: string;
 }
 
 export default function DOMTreeViewer({
@@ -163,15 +182,23 @@ export default function DOMTreeViewer({
   lcaId = "",
   onElementNodeClick,
   onNonElementNodeClick,
+  animHighlightId,
 }: DOMTreeViewerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
 
   useEffect(() => {
-    const { nodes: n, edges: e } = buildFlowElements(root, selectedAId, selectedBId, lcaId);
+    const { nodes: n, edges: e } = buildFlowElements(
+      root,
+      selectedAId,
+      selectedBId,
+      lcaId,
+      animHighlightId,
+    );
+
     setNodes(n);
     setEdges(e);
-  }, [root, selectedAId, selectedBId, lcaId, setNodes, setEdges]);
+  }, [root, selectedAId, selectedBId, lcaId, animHighlightId, setNodes, setEdges]);
 
   const stats = useMemo(
     () => ({
@@ -220,6 +247,7 @@ export default function DOMTreeViewer({
           <MiniMap
             nodeColor={(n) => {
               const state = (n.data as { state: NodeState }).state;
+              if (state === "active") return "#0ea5e9";
               if (state === "matched") return "#22c55e";
               if (state === "visited") return "#f59e0b";
               return "#232838";
