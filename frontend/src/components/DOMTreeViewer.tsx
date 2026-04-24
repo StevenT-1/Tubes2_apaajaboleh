@@ -18,7 +18,7 @@ import { getLayoutedElements } from "./dagreLayout";
 
 const nodeTypes = { domNode: DOMNodeCard };
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// helpers
 function compactText(text = "", maxLength = 28): string {
   const normalized = text.trim().replace(/\s+/g, " ");
   const chars = Array.from(normalized);
@@ -31,47 +31,54 @@ function flattenToFlow(
   parentId: string | null,
   nodesAcc: Node[],
   edgesAcc: Edge[],
+  animHighlightId: string | undefined,
   isRoot = false
 ) {
   const attrs = node.attributes ?? {};
   const type = node.type ?? "element";
+  const isActive = node.id === animHighlightId;
 
   nodesAcc.push({
     id: node.id,
     type: "domNode",
-    position: { x: 0, y: 0 }, // dagre will override
+    position: { x: 0, y: 0 },
     data: {
       type,
       tag: node.tag,
       textPreview: type === "text" ? compactText(node.text) : undefined,
       id: attrs.id,
       classes: attrs.class,
-      state: node.state ?? "idle",
+      state: isActive ? "active" : (node.state ?? "idle"),
       isRoot,
     },
   });
 
   if (parentId) {
+    const isActiveEdge = node.id === animHighlightId;
     edgesAcc.push({
       id: `e-${parentId}-${node.id}`,
       source: parentId,
       target: node.id,
-      style: { stroke: "#d1d5db", strokeWidth: 1.5 },
-      animated: false,
+      style: isActiveEdge
+        ? { stroke: "#0ea5e9", strokeWidth: 2.5 }
+        : { stroke: "#d1d5db", strokeWidth: 1.5 },
+      animated: isActiveEdge,
     });
   }
 
-  node.children?.forEach((child) => flattenToFlow(child, node.id, nodesAcc, edgesAcc));
+  node.children?.forEach((child) =>
+    flattenToFlow(child, node.id, nodesAcc, edgesAcc, animHighlightId)
+  );
 }
 
-function buildFlowElements(root: DOMNode) {
+function buildFlowElements(root: DOMNode, animHighlightId?: string) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  flattenToFlow(root, null, nodes, edges, true);
+  flattenToFlow(root, null, nodes, edges, animHighlightId, true);
   return getLayoutedElements(nodes, edges);
 }
 
-// ── stats bar ────────────────────────────────────────────────────────────────
+// stats bar
 
 interface StatsBarProps {
   totalNodes: number;
@@ -102,27 +109,20 @@ function StatsBar({ totalNodes, visitedCount, matchedCount, maxDepth, elapsedMs 
   );
 }
 
-// ── legend ───────────────────────────────────────────────────────────────────
+//  legend 
 
 function Legend() {
   const items: { state: NodeState; label: string; dot: string }[] = [
     { state: "idle", label: "Belum dikunjungi", dot: "bg-gray-300" },
+    { state: "active", label: "Sedang dikunjungi", dot: "bg-sky-500" },
     { state: "visited", label: "Dikunjungi", dot: "bg-amber-400" },
     { state: "matched", label: "Cocok selector", dot: "bg-green-500" },
   ];
-  return (
-    <div className="flex gap-3 px-4 py-1.5 border-t border-gray-100 bg-white text-xs">
-      {items.map((i) => (
-        <span key={i.state} className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${i.dot}`} />
-          <span className="text-gray-500">{i.label}</span>
-        </span>
-      ))}
-    </div>
-  );
+  void items; // tidak dipakai
+  return null;
 }
 
-// ── max depth util ───────────────────────────────────────────────────────────
+// max depth util 
 
 function getMaxDepth(node: DOMNode, depth = 0): number {
   if (!node.children?.length) return depth;
@@ -139,22 +139,23 @@ function countAll(node: DOMNode): number {
   return 1 + (node.children ?? []).reduce((acc, c) => acc + countAll(c), 0);
 }
 
-// ── main component ────────────────────────────────────────────────────────────
+//  main component 
 
 interface DOMTreeViewerProps {
   root: DOMNode;
   elapsedMs?: number;
+  animHighlightId?: string; // ID node yang sedang aktif dalam animasi
 }
 
-export default function DOMTreeViewer({ root, elapsedMs }: DOMTreeViewerProps) {
+export default function DOMTreeViewer({ root, elapsedMs, animHighlightId }: DOMTreeViewerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
 
   useEffect(() => {
-    const { nodes: n, edges: e } = buildFlowElements(root);
+    const { nodes: n, edges: e } = buildFlowElements(root, animHighlightId);
     setNodes(n);
     setEdges(e);
-  }, [root]);
+  }, [root, animHighlightId]);
 
   const stats = useMemo(() => ({
     total: countAll(root),
@@ -192,6 +193,7 @@ export default function DOMTreeViewer({ root, elapsedMs }: DOMTreeViewerProps) {
           <MiniMap
             nodeColor={(n) => {
               const state = (n.data as { state: NodeState }).state;
+              if (state === "active") return "#0ea5e9";
               if (state === "matched") return "#22c55e";
               if (state === "visited") return "#f59e0b";
               return "#232838";

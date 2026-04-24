@@ -15,12 +15,21 @@ const STATE_STYLES: Record<NodeState, string> = {
   idle: "bg-white border-gray-200 text-gray-700",
   visited: "bg-amber-50 border-amber-400 text-amber-800",
   matched: "bg-green-50 border-green-500 text-green-700",
+  active: "bg-sky-50 border-sky-500 text-sky-800",
 };
 
 const STATE_DOT: Record<NodeState, string> = {
   idle: "bg-gray-300",
   visited: "bg-amber-400",
   matched: "bg-green-500",
+  active: "bg-sky-500 animate-ping",
+};
+
+const STATE_BORDER_WIDTH: Record<NodeState, string> = {
+  idle: "border",
+  visited: "border",
+  matched: "border-2 shadow-sm",
+  active: "border-2 shadow-md shadow-sky-200",
 };
 
 export default function DOMNodeCard({ data }: { data: DOMNodeData }) {
@@ -30,10 +39,11 @@ export default function DOMNodeCard({ data }: { data: DOMNodeData }) {
   return (
     <div
       className={`
-        relative px-3 py-2 rounded-lg border text-xs font-mono
-        transition-colors duration-200 select-none
+        relative px-3 py-2 rounded-lg text-xs font-mono
+        transition-all duration-300 select-none
         ${STATE_STYLES[state]}
-        ${state === "matched" ? "border-2 shadow-sm" : "border"}
+        ${STATE_BORDER_WIDTH[state]}
+        ${state === "active" ? "scale-105" : ""}
       `}
       style={{ minWidth: 120, maxWidth: 160 }}
     >
