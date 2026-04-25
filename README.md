@@ -171,12 +171,6 @@ Port tersebut bukan port tetap proyek dan bisa berubah jika port itu sudah dipak
 7. Lihat hasil, log traversal, visualisasi DOM, dan animasi traversal.
 8. Untuk LCA, pilih dua node pada visualisasi, lalu klik **Find LCA**.
 
-## Catatan Singkat
-
-- Halaman yang sangat bergantung pada JavaScript mungkin tidak terbaca lengkap jika HTML awal tidak memuat kontennya.
-- Selector yang didukung adalah subset CSS selector yang diimplementasikan.
-- Deployment default menggunakan HTTP, bukan HTTPS.
-
 ## Penulis
 
 Kelompok **apaajaboleh**
