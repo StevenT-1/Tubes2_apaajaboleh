@@ -67,7 +67,7 @@ export default function DOMNodeCard({ data }: { data: DOMNodeData }) {
   return (
     <div
       className={`
-        relative px-3 py-2 rounded-lg text-xs font-mono
+        relative px-4 py-3 rounded-lg text-sm font-mono
         transition-all duration-300 select-none
         ${STATE_STYLES[state]}
         ${STATE_BORDER_WIDTH[state]}
@@ -75,17 +75,17 @@ export default function DOMNodeCard({ data }: { data: DOMNodeData }) {
         ${markerOutlineClass}
         ${isSelectableForLCA ? "cursor-pointer hover:shadow-md" : "cursor-not-allowed"}
       `}
-      style={{ minWidth: 120, maxWidth: 160 }}
+      style={{ minWidth: 170, maxWidth: 220 }}
     >
       {!isRoot && (
         <Handle
           type="target"
-          position={Position.Top}
+          position={Position.Left}
           className="!bg-gray-300 !w-2 !h-2 !border-0"
         />
       )}
 
-      <span className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${STATE_DOT[state]}`} />
+      <span className={`absolute top-3 right-3 w-2 h-2 rounded-full ${STATE_DOT[state]}`} />
 
       {markers.length > 0 && (
         <div className="mb-1 flex flex-wrap gap-1 pr-3">
@@ -106,16 +106,16 @@ export default function DOMNodeCard({ data }: { data: DOMNodeData }) {
         </div>
       )}
 
-      <p className="font-semibold leading-tight truncate pr-3">
+      <p className="font-semibold leading-tight truncate pr-4">
         {isText ? "#text" : <>&lt;{tag}&gt;</>}
       </p>
 
       {isText && textPreview && (
-        <p className="text-[10px] opacity-70 truncate mt-0.5">"{textPreview}"</p>
+        <p className="text-[11px] opacity-70 truncate mt-1">"{textPreview}"</p>
       )}
 
       {!isText && (id || classes) && (
-        <p className="text-[10px] opacity-60 truncate mt-0.5">
+        <p className="text-[11px] opacity-60 truncate mt-1">
           {id && <span>#{id} </span>}
           {classes && <span>.{classes.split(" ").join(" .")}</span>}
         </p>
