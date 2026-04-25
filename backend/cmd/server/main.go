@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"tubes2/backend/internal/api/httpapi"
+	"tubes2/backend/internal/api"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		port = "8080"
 	}
 
-	server := httpapi.New(":" + port)
+	server := api.New(":" + port)
 
 	go func() {
 		if err := server.Run(); err != nil {
