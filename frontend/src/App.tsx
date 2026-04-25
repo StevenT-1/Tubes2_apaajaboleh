@@ -344,7 +344,7 @@ export default function App() {
             </div>
             <nav className="header-nav">
               <span className="header-nav-item">Tugas Besar 2</span>
-              <span className="header-nav-item">IF2211 · ITB · 2026</span>
+              <span className="header-nav-item">IF2211</span>
             </nav>
           </div>
         </div>
@@ -693,7 +693,7 @@ export default function App() {
       <footer className="site-footer">
         <div className="container">
           <p>
-            Tugas Besar 2 · IF2211 Strategi Algoritma · apaajaboleh · Institut Teknologi Bandung · 2026
+            Tugas Besar 2 · IF2211 Strategi Algoritma · apaajaboleh
           </p>
         </div>
       </footer>
