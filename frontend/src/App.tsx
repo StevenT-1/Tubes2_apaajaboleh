@@ -51,6 +51,10 @@ function formatAlgorithmLabel(algorithm: TraversalAlgorithm): string {
   return algorithm.toUpperCase();
 }
 
+function formatElapsedMs(elapsedMs: number): string {
+  return `${elapsedMs.toFixed(2)} ms`;
+}
+
 function formatSelectedNodeLabel(node: DOMNode | null): string {
   if (!node) return "(belum dipilih)";
   return formatDOMNodeLabel(node);
@@ -428,7 +432,7 @@ export default function App() {
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">TIME ELAPSED</span>
-                      <span className="stat-value">{result.elapsedMs}ms</span>
+                      <span className="stat-value">{formatElapsedMs(result.elapsedMs)}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">MAX DEPTH</span>

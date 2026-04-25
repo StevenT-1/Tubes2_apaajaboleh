@@ -84,7 +84,7 @@ func Run(ctx context.Context, request Request) (Result, error) {
 	return Result{
 		Tree:         treeData.Tree,
 		Steps:        steps,
-		ElapsedMs:    traversalResult.ElapsedNs / int64(1_000_000),
+		ElapsedMs:    float64(traversalResult.ElapsedNs) / 1_000_000.0,
 		NodesVisited: len(steps),
 		MaxDepth:     maxTreeDepth(treeData.Tree, 0),
 		MatchesFound: matchesFound,

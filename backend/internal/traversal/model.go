@@ -48,7 +48,7 @@ type Step struct {
 type Result struct {
 	Tree         *TreeNode `json:"tree"`
 	Steps        []Step    `json:"steps"`
-	ElapsedMs    int64     `json:"elapsedMs"`
+	ElapsedMs    float64   `json:"elapsedMs"`
 	NodesVisited int       `json:"nodesVisited"`
 	MaxDepth     int       `json:"maxDepth"`
 	MatchesFound int       `json:"matchesFound"`

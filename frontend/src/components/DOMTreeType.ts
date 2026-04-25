@@ -1,4 +1,4 @@
-export type NodeState = "idle" | "visited" | "matched" | "active";
+export type NodeState = "idle" | "visited" | "matched" | "affected" | "active";
 export type DOMNodeType = "element" | "text";
 
 export interface DOMNode {

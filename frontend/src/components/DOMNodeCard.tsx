@@ -17,6 +17,7 @@ const STATE_STYLES: Record<NodeState, string> = {
   idle: "bg-white border-gray-200 text-gray-700",
   visited: "bg-amber-50 border-amber-400 text-amber-800",
   matched: "bg-green-50 border-green-500 text-green-700",
+  affected: "bg-emerald-50 border-emerald-300 text-emerald-700",
   active: "bg-sky-50 border-sky-500 text-sky-800",
 };
 
@@ -24,6 +25,7 @@ const STATE_DOT: Record<NodeState, string> = {
   idle: "bg-gray-300",
   visited: "bg-amber-400",
   matched: "bg-green-500",
+  affected: "bg-emerald-300",
   active: "bg-sky-500 animate-ping",
 };
 
@@ -31,6 +33,7 @@ const STATE_BORDER_WIDTH: Record<NodeState, string> = {
   idle: "border",
   visited: "border",
   matched: "border-2 shadow-sm",
+  affected: "border",
   active: "border-2 shadow-md shadow-sky-200",
 };
 

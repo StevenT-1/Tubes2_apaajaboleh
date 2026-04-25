@@ -28,6 +28,7 @@ function compactText(text = "", maxLength = 28): string {
 function flattenToFlow(
   node: DOMNode,
   parentId: string | null,
+  parentState: NodeState,
   nodesAcc: Node[],
   edgesAcc: Edge[],
   selectedAId = "",
@@ -39,6 +40,13 @@ function flattenToFlow(
   const attrs = node.attributes ?? {};
   const type = node.type ?? "element";
   const isActive = node.id === animHighlightId;
+  const ownState = node.state ?? "idle";
+  const state =
+    !isActive && type === "text" && (parentState === "matched" || parentState === "affected")
+      ? "affected"
+      : isActive
+        ? "active"
+        : ownState;
 
   const markers: string[] = [];
   if (node.id === selectedAId) markers.push("A");
@@ -55,7 +63,7 @@ function flattenToFlow(
       textPreview: type === "text" ? compactText(node.text) : undefined,
       id: attrs.id,
       classes: attrs.class,
-      state: isActive ? "active" : (node.state ?? "idle"),
+      state,
       isRoot,
       isSelectableForLCA: type === "element" && node.tag !== "fragment",
       markers,
@@ -80,6 +88,7 @@ function flattenToFlow(
     flattenToFlow(
       child,
       node.id,
+      state,
       nodesAcc,
       edgesAcc,
       selectedAId,
@@ -100,7 +109,18 @@ function buildFlowElements(
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
-  flattenToFlow(root, null, nodes, edges, selectedAId, selectedBId, lcaId, animHighlightId, true);
+  flattenToFlow(
+    root,
+    null,
+    "idle",
+    nodes,
+    edges,
+    selectedAId,
+    selectedBId,
+    lcaId,
+    animHighlightId,
+    true,
+  );
   return getLayoutedElements(nodes, edges);
 }
 
@@ -118,7 +138,7 @@ function StatsBar({ totalNodes, visitedCount, matchedCount, maxDepth, elapsedMs 
     { label: "Dikunjungi", value: visitedCount, color: "text-amber-600" },
     { label: "Cocok", value: matchedCount, color: "text-blue-600" },
     { label: "Kedalaman maks", value: maxDepth },
-    ...(elapsedMs != null ? [{ label: "Waktu", value: `${elapsedMs} ms` }] : []),
+    ...(elapsedMs != null ? [{ label: "Waktu", value: `${elapsedMs.toFixed(2)} ms` }] : []),
   ];
 
   return (
@@ -139,6 +159,7 @@ function Legend() {
     { state: "active", label: "Sedang dikunjungi", dot: "bg-sky-500" },
     { state: "visited", label: "Dikunjungi", dot: "bg-amber-400" },
     { state: "matched", label: "Cocok selector", dot: "bg-green-500" },
+    { state: "affected", label: "Terdampak", dot: "bg-emerald-300" },
   ];
 
   return (
@@ -249,6 +270,7 @@ export default function DOMTreeViewer({
               const state = (n.data as { state: NodeState }).state;
               if (state === "active") return "#0ea5e9";
               if (state === "matched") return "#22c55e";
+              if (state === "affected") return "#6ee7b7";
               if (state === "visited") return "#f59e0b";
               return "#232838";
             }}
