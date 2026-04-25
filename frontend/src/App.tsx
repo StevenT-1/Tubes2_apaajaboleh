@@ -112,7 +112,14 @@ function applyStates(
   };
 }
 
-const ANIM_DELAY_MS = 500;
+const ANIM_SPEED_OPTIONS = [
+  { label: "0.5x", delayMs: 1000 },
+  { label: "1x", delayMs: 500 },
+  { label: "2x", delayMs: 250 },
+  { label: "4x", delayMs: 125 },
+] as const;
+
+const DEFAULT_ANIM_DELAY_MS = 500;
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("idle");
@@ -129,6 +136,7 @@ export default function App() {
   // ── Animasi state ──
   const [animState, setAnimState] = useState<AnimState>("idle");
   const [animStepIdx, setAnimStepIdx] = useState(0);
+  const [animDelayMs, setAnimDelayMs] = useState(DEFAULT_ANIM_DELAY_MS);
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -156,10 +164,10 @@ export default function App() {
         if (prev >= result.steps.length) return prev;
         return prev + 1;
       });
-    }, ANIM_DELAY_MS);
+    }, animDelayMs);
 
     return () => clearAnimInterval();
-  }, [animState, result]);
+  }, [animState, result, animDelayMs]);
 
   useEffect(() => {
     if (animState === "playing" && result && animStepIdx >= result.steps.length) {
@@ -495,6 +503,19 @@ export default function App() {
                           </span>
                         )}
                       </div>
+                      <label className="anim-speed-control">
+                        <span>Speed</span>
+                        <select
+                          value={animDelayMs}
+                          onChange={(event) => setAnimDelayMs(Number(event.target.value))}
+                        >
+                          {ANIM_SPEED_OPTIONS.map((option) => (
+                            <option key={option.delayMs} value={option.delayMs}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       {/* Progress */}
                       {animState !== "idle" && (
                         <div className="anim-controls-right">

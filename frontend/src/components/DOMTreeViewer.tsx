@@ -1,127 +1,72 @@
-import { useEffect, useMemo } from "react";
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  type Node,
-  type Edge,
-  BackgroundVariant,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { useEffect, useMemo, useRef } from "react";
+import type { DOMNode, DOMNodeType, NodeState } from "./DOMTreeType";
 
-import type { DOMNode, NodeState } from "./DOMTreeType";
-import DOMNodeCard from "./DOMNodeCard";
-import { getLayoutedElements } from "./dagreLayout";
-
-const nodeTypes = { domNode: DOMNodeCard };
-
-function compactText(text = "", maxLength = 28): string {
+function compactText(text = "", maxLength = 48): string {
   const normalized = text.trim().replace(/\s+/g, " ");
   const chars = Array.from(normalized);
   if (chars.length <= maxLength) return normalized;
   return `${chars.slice(0, maxLength - 1).join("")}...`;
 }
 
-function flattenToFlow(
-  node: DOMNode,
-  parentId: string | null,
-  parentState: NodeState,
-  nodesAcc: Node[],
-  edgesAcc: Edge[],
-  selectedAId = "",
-  selectedBId = "",
-  lcaId = "",
-  animHighlightId?: string,
-  isRoot = false,
-) {
-  const attrs = node.attributes ?? {};
-  const type = node.type ?? "element";
-  const isActive = node.id === animHighlightId;
-  const ownState = node.state ?? "idle";
-  const state =
-    !isActive && type === "text" && (parentState === "matched" || parentState === "affected")
-      ? "affected"
-      : isActive
-        ? "active"
-        : ownState;
+interface TreeRow {
+  id: string;
+  type: DOMNodeType;
+  tag?: string;
+  textPreview?: string;
+  attrs: Record<string, string>;
+  state: NodeState;
+  depth: number;
+  markers: string[];
+  isSelectableForLCA: boolean;
+}
 
+function getDisplayState(node: DOMNode, parentState: NodeState, animHighlightId?: string): NodeState {
+  const type = node.type ?? "element";
+  const ownState = node.state ?? "idle";
+
+  if (node.id === animHighlightId) return "active";
+  if (type === "text" && (parentState === "matched" || parentState === "affected")) return "affected";
+  return ownState;
+}
+
+function flattenRows(
+  node: DOMNode,
+  rows: TreeRow[],
+  depth: number,
+  parentState: NodeState,
+  selectedAId: string,
+  selectedBId: string,
+  lcaId: string,
+  animHighlightId?: string,
+) {
+  const type = node.type ?? "element";
+  const attrs = node.attributes ?? {};
+  const state = getDisplayState(node, parentState, animHighlightId);
   const markers: string[] = [];
+
   if (node.id === selectedAId) markers.push("A");
   if (node.id === selectedBId) markers.push("B");
   if (node.id === lcaId) markers.push("LCA");
 
-  nodesAcc.push({
+  rows.push({
     id: node.id,
-    type: "domNode",
-    position: { x: 0, y: 0 },
-    data: {
-      type,
-      tag: node.tag,
-      textPreview: type === "text" ? compactText(node.text) : undefined,
-      id: attrs.id,
-      classes: attrs.class,
-      state,
-      isRoot,
-      isSelectableForLCA: type === "element" && node.tag !== "fragment",
-      markers,
-    },
+    type,
+    tag: node.tag,
+    textPreview: type === "text" ? compactText(node.text) : undefined,
+    attrs,
+    state,
+    depth,
+    markers,
+    isSelectableForLCA: type === "element" && node.tag !== "fragment",
   });
 
-  if (parentId) {
-    const isActiveEdge = node.id === animHighlightId;
-
-    edgesAcc.push({
-      id: `e-${parentId}-${node.id}`,
-      source: parentId,
-      target: node.id,
-      style: isActiveEdge
-        ? { stroke: "#0ea5e9", strokeWidth: 2.5 }
-        : { stroke: "#d1d5db", strokeWidth: 1.5 },
-      animated: isActiveEdge,
-    });
-  }
-
-  node.children?.forEach((child) =>
-    flattenToFlow(
-      child,
-      node.id,
-      state,
-      nodesAcc,
-      edgesAcc,
-      selectedAId,
-      selectedBId,
-      lcaId,
-      animHighlightId,
-    ),
-  );
+  node.children?.forEach((child) => {
+    flattenRows(child, rows, depth + 1, state, selectedAId, selectedBId, lcaId, animHighlightId);
+  });
 }
 
-function buildFlowElements(
-  root: DOMNode,
-  selectedAId = "",
-  selectedBId = "",
-  lcaId = "",
-  animHighlightId?: string,
-) {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-
-  flattenToFlow(
-    root,
-    null,
-    "idle",
-    nodes,
-    edges,
-    selectedAId,
-    selectedBId,
-    lcaId,
-    animHighlightId,
-    true,
-  );
-  return getLayoutedElements(nodes, edges);
+function countAll(node: DOMNode): number {
+  return 1 + (node.children ?? []).reduce((acc, c) => acc + countAll(c), 0);
 }
 
 interface StatsBarProps {
@@ -142,11 +87,11 @@ function StatsBar({ totalNodes, visitedCount, matchedCount, maxDepth, elapsedMs 
   ];
 
   return (
-    <div className="flex gap-4 px-4 py-2 border-b border-gray-100 bg-gray-50 text-xs flex-wrap">
+    <div className="dom-tree-stats">
       {stats.map((s) => (
-        <span key={s.label} className="flex items-center gap-1">
-          <span className="text-gray-400">{s.label}:</span>
-          <span className={`font-semibold ${s.color ?? "text-gray-700"}`}>{s.value}</span>
+        <span key={s.label} className="dom-tree-stat">
+          <span className="dom-tree-stat-label">{s.label}:</span>
+          <span className={`dom-tree-stat-value ${s.color ?? ""}`}>{s.value}</span>
         </span>
       ))}
     </div>
@@ -154,28 +99,24 @@ function StatsBar({ totalNodes, visitedCount, matchedCount, maxDepth, elapsedMs 
 }
 
 function Legend() {
-  const items: { state: NodeState; label: string; dot: string }[] = [
-    { state: "idle", label: "Belum dikunjungi", dot: "bg-gray-300" },
-    { state: "active", label: "Sedang dikunjungi", dot: "bg-sky-500" },
-    { state: "visited", label: "Dikunjungi", dot: "bg-amber-400" },
-    { state: "matched", label: "Cocok selector", dot: "bg-green-500" },
-    { state: "affected", label: "Terdampak", dot: "bg-emerald-300" },
+  const items: { state: NodeState; label: string }[] = [
+    { state: "idle", label: "Belum dikunjungi" },
+    { state: "active", label: "Sedang dikunjungi" },
+    { state: "visited", label: "Dikunjungi" },
+    { state: "matched", label: "Cocok selector" },
+    { state: "affected", label: "Terdampak" },
   ];
 
   return (
-    <div className="flex gap-3 px-4 py-1.5 border-t border-gray-100 bg-white text-xs">
+    <div className="dom-tree-legend">
       {items.map((i) => (
-        <span key={i.state} className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${i.dot}`} />
-          <span className="text-gray-500">{i.label}</span>
+        <span key={i.state} className="dom-tree-legend-item">
+          <span className={`dom-tree-dot dom-tree-dot--${i.state}`} />
+          <span>{i.label}</span>
         </span>
       ))}
     </div>
   );
-}
-
-function countAll(node: DOMNode): number {
-  return 1 + (node.children ?? []).reduce((acc, c) => acc + countAll(c), 0);
 }
 
 interface DOMTreeViewerProps {
@@ -205,21 +146,13 @@ export default function DOMTreeViewer({
   onNonElementNodeClick,
   animHighlightId,
 }: DOMTreeViewerProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
+  const activeRowRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const { nodes: n, edges: e } = buildFlowElements(
-      root,
-      selectedAId,
-      selectedBId,
-      lcaId,
-      animHighlightId,
-    );
-
-    setNodes(n);
-    setEdges(e);
-  }, [root, selectedAId, selectedBId, lcaId, animHighlightId, setNodes, setEdges]);
+  const rows = useMemo(() => {
+    const nextRows: TreeRow[] = [];
+    flattenRows(root, nextRows, 0, "idle", selectedAId, selectedBId, lcaId, animHighlightId);
+    return nextRows;
+  }, [root, selectedAId, selectedBId, lcaId, animHighlightId]);
 
   const stats = useMemo(
     () => ({
@@ -231,8 +164,12 @@ export default function DOMTreeViewer({
     [root, nodesVisited, matchesFound, maxDepth],
   );
 
+  useEffect(() => {
+    activeRowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [animHighlightId]);
+
   return (
-    <div className="flex flex-col border border-gray-200 rounded-xl overflow-hidden" style={{ height: 520 }}>
+    <div className="dom-tree-viewer">
       <StatsBar
         totalNodes={stats.total}
         visitedCount={stats.visited}
@@ -241,42 +178,53 @@ export default function DOMTreeViewer({
         elapsedMs={elapsedMs}
       />
 
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={(_, node) => {
-            const data = node.data as { isSelectableForLCA?: boolean };
-            if (data.isSelectableForLCA) {
-              onElementNodeClick?.(node.id);
-              return;
-            }
-            onNonElementNodeClick?.();
-          }}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.1}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#e5e7eb" />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeColor={(n) => {
-              const state = (n.data as { state: NodeState }).state;
-              if (state === "active") return "#0ea5e9";
-              if (state === "matched") return "#22c55e";
-              if (state === "affected") return "#6ee7b7";
-              if (state === "visited") return "#f59e0b";
-              return "#232838";
-            }}
-            maskColor="rgba(13,15,20,0.65)"
-          />
-        </ReactFlow>
+      <div className="dom-tree-scroll" role="tree" aria-label="DOM tree visualization">
+        <div className="dom-tree-list">
+          {rows.map((row) => {
+            const nodeLabel = row.type === "text" ? "#text" : `<${row.tag ?? "node"}>`;
+            const idText = row.attrs.id ? `#${row.attrs.id}` : "";
+            const classText = row.attrs.class ? `.${row.attrs.class.split(" ").join(" .")}` : "";
+            const isActive = row.state === "active";
+
+            return (
+              <button
+                key={row.id}
+                ref={isActive ? activeRowRef : null}
+                type="button"
+                role="treeitem"
+                aria-level={row.depth + 1}
+                className={`dom-tree-row dom-tree-row--${row.state} ${
+                  row.isSelectableForLCA ? "dom-tree-row--selectable" : "dom-tree-row--disabled"
+                }`}
+                style={{ paddingLeft: `${16 + row.depth * 34}px` }}
+                onClick={() => {
+                  if (row.isSelectableForLCA) {
+                    onElementNodeClick?.(row.id);
+                    return;
+                  }
+                  onNonElementNodeClick?.();
+                }}
+              >
+                <span className="dom-tree-branch" aria-hidden="true" />
+                <span className="dom-tree-node">
+                  <span className="dom-tree-node-main">
+                    <span className="dom-tree-node-label">{nodeLabel}</span>
+                    {row.markers.map((marker) => (
+                      <span key={marker} className={`dom-tree-marker dom-tree-marker--${marker.toLowerCase()}`}>
+                        {marker}
+                      </span>
+                    ))}
+                  </span>
+                  {(idText || classText || row.textPreview) && (
+                    <span className="dom-tree-node-meta">
+                      {row.textPreview ? `"${row.textPreview}"` : `${idText} ${classText}`.trim()}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <Legend />
